@@ -38,7 +38,7 @@ something the stage introduces and later stages build on.
 
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazdiff/issues/2) | | |
+| 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazdiff/issues/2) | [#12](https://github.com/pedrobtz/py-dazdiff/pull/12) | 2026-11-06 |
 | 1 | [Core parity](#stage-1--core-parity) | full | [#3](https://github.com/pedrobtz/py-dazdiff/issues/3) | | |
 | 2 | [Duplicates and row keys](#stage-2--duplicates-and-row-keys) | quick | [#4](https://github.com/pedrobtz/py-dazdiff/issues/4) | | |
 | 3 | [Text report](#stage-3--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
