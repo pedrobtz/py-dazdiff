@@ -11,7 +11,8 @@ import pandas as pd
 
 STATUSES = ["same", "changed", "only_x", "only_y"]
 _MODES = ("benchmark", "equal")
-_DUPLICATES = ("pair", "error")
+_DUPLICATES = ("disambiguate", "aggregate", "error")
+_ROW_KEYS = ("none", "position", "sorted")
 _TRUE = {"true", "t", "yes", "1"}
 _FALSE = {"false", "f", "no", "0"}
 
@@ -236,10 +237,11 @@ def diff_table(
     *,
     mode: str = "benchmark",
     by: Sequence[str] | str | None = None,
+    row_key: str = "none",
     measures: Sequence[str] | str = "numeric",
     tolerance: float = 0.0,
     rel_tol: float = 0.0,
-    duplicates: str = "pair",
+    duplicates: str = "disambiguate",
     truncate: bool = True,
 ) -> pd.DataFrame:
     """Compare two tables value by value.
@@ -256,14 +258,20 @@ def diff_table(
         Key columns that identify a row. Defaults to every column that is not a measure.
         With ``by`` given, other non-measure columns are ignored with a note in
         benchmark mode, and are an error in equal mode.
+    row_key
+        ``"none"`` (default), or a virtual ``row_number`` key added to the identity:
+        ``"position"`` numbers rows as they come, ``"sorted"`` numbers them after
+        sorting both tables by their compared columns. Use it when every column is a
+        measure. It cannot be combined with ``by``.
     measures
         ``"numeric"`` (float columns), ``"numeric+integer"``, or column names.
     tolerance, rel_tol
         For a finite pair, a value is ``same`` when ``abs_diff <= tolerance`` or
         ``rel_diff <= rel_tol``.
     duplicates
-        ``"pair"`` pairs repeated keys in arrival order (with a warning);
-        ``"error"`` refuses them.
+        ``"disambiguate"`` (default) pairs repeated keys in arrival order, with a
+        warning; ``"aggregate"`` compares the multiset of values per key and measure
+        (tolerances must be 0); ``"error"`` refuses repeated keys.
     truncate
         Allow truncating non-integral values when casting to an integer column.
 
@@ -272,7 +280,9 @@ def diff_table(
     pandas.DataFrame
         Sorted by the key. With measures (``attrs["shape"] == "cells"``), one row per
         key and measure, with ``metric``, ``row_id_x``, ``row_id_y``, ``value_x``,
-        ``value_y``, ``diff``, ``abs_diff``, ``rel_diff`` and ``status``. With no
+        ``value_y``, ``diff``, ``abs_diff``, ``rel_diff`` and ``status``. With
+        ``duplicates="aggregate"`` (``"groups"``), one row per key and measure, with
+        ``n_rows_x``, ``n_rows_y``, ``values_x`` and ``values_y`` (sorted tuples). With no
         measures (``"rows"``), one row per source row, with ``key_seq``. ``attrs``
         also holds ``mode``, ``by``, ``measures`` and ``truncated``.
 
@@ -293,13 +303,22 @@ def diff_table(
         raise DiffError(f"`mode` must be one of {_MODES}, not {mode!r}.")
     if duplicates not in _DUPLICATES:
         raise DiffError(f"`duplicates` must be one of {_DUPLICATES}, not {duplicates!r}.")
+    if row_key not in _ROW_KEYS:
+        raise DiffError(f"`row_key` must be one of {_ROW_KEYS}, not {row_key!r}.")
+    if row_key != "none" and by is not None:
+        raise DiffError("`row_key` adds a key of its own, so it cannot be combined with `by`.")
     if not (tolerance >= 0 and rel_tol >= 0):
         raise DiffError("`tolerance` and `rel_tol` must be non-negative numbers.")
+    if duplicates == "aggregate" and (tolerance or rel_tol):
+        raise DiffError(
+            'duplicates = "aggregate" compares multisets exactly; `tolerance` and `rel_tol` '
+            "must be 0."
+        )
 
     alerts: list[tuple[type[Warning], str]] = []
     try:
         out = _diff_table(
-            x, y, mode, by, measures, tolerance, rel_tol, duplicates, truncate, alerts
+            x, y, mode, by, row_key, measures, tolerance, rel_tol, duplicates, truncate, alerts
         )
     finally:
         for category, message in alerts:
@@ -307,7 +326,9 @@ def diff_table(
     return out
 
 
-def _diff_table(x, y, mode, by, measures, tolerance, rel_tol, duplicates, truncate, alerts):
+def _diff_table(
+    x, y, mode, by, row_key, measures, tolerance, rel_tol, duplicates, truncate, alerts
+):
     # Names: x is checked whole; y only for the columns that are compared.
     x_canon = [_canon(c) for c in x.columns]
     _check_names(list(x.columns), x_canon, "`x`")
@@ -398,9 +419,16 @@ def _diff_table(x, y, mode, by, measures, tolerance, rel_tol, duplicates, trunca
     else:
         meas = _select_measures(x, measures, x_names)
         by = [c for c in x.columns if c not in meas]
+    if row_key != "none":
+        compared = by + meas
+        x = x.assign(row_number=_row_numbers(x, row_key, compared))
+        y = y.assign(row_number=_row_numbers(y, row_key, compared))
+        x_names["row_number"] = "row_number"
+        by = [*by, "row_number"]
     if not by:
         raise DiffError(
-            "Every column is a measure, so rows have no key; pass `by` or fewer `measures`."
+            "Every column is a measure, so rows have no key; pass `by`, fewer `measures`, "
+            'or `row_key="position"` or `"sorted"`.'
         )
 
     if not meas:
@@ -412,49 +440,16 @@ def _diff_table(x, y, mode, by, measures, tolerance, rel_tol, duplicates, trunca
             )
         )
 
-    # With no measures a row is its own key, so repeats are copies, not clashes.
-    dup_rule = duplicates if meas else "ignore"
     x_names_y = {c: y_names.get(c) for c in x.columns}
-    x = _add_seq(x[by + meas].copy(), by, dup_rule, "x", alerts)
-    y = _add_seq(y[by + meas].copy(), by, dup_rule, "y", alerts)
-    keys = [*by, "key_seq"]
-    x["row_id_x"] = np.arange(1, len(x) + 1)
-    y["row_id_y"] = np.arange(1, len(y) + 1)
-
-    m = x.merge(y, on=keys, how="outer", suffixes=("_x", "_y"), sort=False)
-    matched = m["row_id_x"].notna() & m["row_id_y"].notna()
-    if len(x) and len(y) and not matched.any():
-        raise DiffError(
-            f"No row of `x` has a key in common with `y` (key: {_join(x_names[c] for c in by)})."
-        )
-    for c in ("row_id_x", "row_id_y"):
-        m[c] = m[c].astype("Int64")
-    only_in_y, only_in_x = m["row_id_x"].isna().to_numpy(), m["row_id_y"].isna().to_numpy()
-
-    if not meas:
-        status = np.select([only_in_y, only_in_x], ["only_y", "only_x"], "same")
-        out = m[[*keys, "row_id_x", "row_id_y"]].copy()
-        out["status"] = pd.Categorical(status, categories=STATUSES)
-        sort = keys
-        shape = "rows"
+    x, y = x[by + meas].copy(), y[by + meas].copy()
+    if duplicates == "aggregate" and meas:
+        out = _aggregate(x, y, by, meas, x_names)
+        sort, shape = [*by, "metric"], "groups"
     else:
-        parts = []
-        for metric in meas:
-            p = m[[*keys, "row_id_x", "row_id_y"]].copy()
-            p.insert(len(keys), "metric", metric)
-            vx, vy = m[f"{metric}_x"], m[f"{metric}_y"]
-            diff, abs_diff, rel_diff, same = _classify(vx, vy, tolerance, rel_tol)
-            p["value_x"] = vx.to_numpy(dtype=float, na_value=np.nan)
-            p["value_y"] = vy.to_numpy(dtype=float, na_value=np.nan)
-            p["diff"], p["abs_diff"], p["rel_diff"] = diff, abs_diff, rel_diff
-            status = np.select(
-                [only_in_y, only_in_x, same], ["only_y", "only_x", "same"], "changed"
-            )
-            p["status"] = pd.Categorical(status, categories=STATUSES)
-            parts.append(p)
-        out = pd.concat(parts, ignore_index=True).drop(columns="key_seq")
-        sort = [*by, "metric"]
-        shape = "cells"
+        # With no measures a row is its own key, so repeats are copies, not clashes,
+        # unless the caller asked for repeats to be refused.
+        dup_rule = duplicates if meas or duplicates == "error" else "ignore"
+        out, sort, shape = _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts)
 
     out = out.sort_values(sort, kind="stable", ignore_index=True, na_position="last")
     out.attrs.update(
@@ -469,6 +464,104 @@ def _diff_table(x, y, mode, by, measures, tolerance, rel_tol, duplicates, trunca
         }
     )
     return out
+
+
+def _row_numbers(df: pd.DataFrame, row_key: str, compared: list[str]) -> np.ndarray:
+    n = len(df)
+    if row_key == "position" or n == 0:
+        return np.arange(1, n + 1)
+    order = df.sort_values(compared, kind="stable", na_position="last").index.to_numpy()
+    numbers = np.empty(n, dtype="int64")
+    numbers[order] = np.arange(1, n + 1)
+    return numbers
+
+
+def _no_overlap(x_names: dict, by: list[str]) -> DiffError:
+    return DiffError(
+        f"No row of `x` has a key in common with `y` (key: {_join(x_names[c] for c in by)})."
+    )
+
+
+def _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts):
+    x = _add_seq(x, by, dup_rule, "x", alerts)
+    y = _add_seq(y, by, dup_rule, "y", alerts)
+    keys = [*by, "key_seq"]
+    x["row_id_x"] = np.arange(1, len(x) + 1)
+    y["row_id_y"] = np.arange(1, len(y) + 1)
+
+    m = x.merge(y, on=keys, how="outer", suffixes=("_x", "_y"), sort=False)
+    matched = m["row_id_x"].notna() & m["row_id_y"].notna()
+    if len(x) and len(y) and not matched.any():
+        raise _no_overlap(x_names, by)
+    for c in ("row_id_x", "row_id_y"):
+        m[c] = m[c].astype("Int64")
+    only_in_y, only_in_x = m["row_id_x"].isna().to_numpy(), m["row_id_y"].isna().to_numpy()
+
+    if not meas:
+        status = np.select([only_in_y, only_in_x], ["only_y", "only_x"], "same")
+        out = m[[*keys, "row_id_x", "row_id_y"]].copy()
+        out["status"] = pd.Categorical(status, categories=STATUSES)
+        return out, keys, "rows"
+
+    parts = []
+    for metric in meas:
+        p = m[[*keys, "row_id_x", "row_id_y"]].copy()
+        p.insert(len(keys), "metric", metric)
+        vx, vy = m[f"{metric}_x"], m[f"{metric}_y"]
+        diff, abs_diff, rel_diff, same = _classify(vx, vy, tolerance, rel_tol)
+        p["value_x"] = vx.to_numpy(dtype=float, na_value=np.nan)
+        p["value_y"] = vy.to_numpy(dtype=float, na_value=np.nan)
+        p["diff"], p["abs_diff"], p["rel_diff"] = diff, abs_diff, rel_diff
+        status = np.select([only_in_y, only_in_x, same], ["only_y", "only_x", "same"], "changed")
+        p["status"] = pd.Categorical(status, categories=STATUSES)
+        parts.append(p)
+    out = pd.concat(parts, ignore_index=True).drop(columns="key_seq")
+    return out, [*by, "metric"], "cells"
+
+
+def _multiset(values: pd.Series) -> tuple:
+    """The values of one group as a sorted tuple; missing values last, as NaN."""
+    v = values.to_numpy(dtype=float, na_value=np.nan)
+    v = np.where(v == 0, 0.0, v)  # -0.0 and 0.0 are the same value
+    return tuple(np.sort(v).tolist())  # np.sort puts NaN last
+
+
+def _same_multiset(a: tuple, b: tuple) -> bool:
+    if len(a) != len(b):
+        return False
+    return all(u == v or (u != u and v != v) for u, v in zip(a, b, strict=True))
+
+
+def _aggregate(x, y, by, meas, x_names):
+    def groups(df, side):
+        g = df.groupby(by, dropna=False, sort=False)
+        out = g[meas].agg(_multiset)
+        out.columns = [f"{m}_{side}" for m in meas]
+        out.insert(0, f"n_rows_{side}", g.size())
+        return out.reset_index()
+
+    gx, gy = groups(x, "x"), groups(y, "y")
+    m = gx.merge(gy, on=by, how="outer", sort=False)
+    in_x, in_y = m["n_rows_x"].notna().to_numpy(), m["n_rows_y"].notna().to_numpy()
+    if len(x) and len(y) and not (in_x & in_y).any():
+        raise _no_overlap(x_names, by)
+    for c in ("n_rows_x", "n_rows_y"):
+        m[c] = m[c].astype("Int64")
+
+    parts = []
+    for metric in meas:
+        p = m[[*by, "n_rows_x", "n_rows_y"]].copy()
+        p.insert(len(by), "metric", metric)
+        vx, vy = m[f"{metric}_x"], m[f"{metric}_y"]
+        p["values_x"], p["values_y"] = vx.to_numpy(), vy.to_numpy()
+        same = np.array(
+            [a == a and b == b and _same_multiset(a, b) for a, b in zip(vx, vy, strict=True)],
+            dtype=bool,
+        )
+        status = np.select([~in_x, ~in_y, same], ["only_y", "only_x", "same"], "changed")
+        p["status"] = pd.Categorical(status, categories=STATUSES)
+        parts.append(p)
+    return pd.concat(parts, ignore_index=True)
 
 
 def diff_summary(d: pd.DataFrame) -> pd.DataFrame:
