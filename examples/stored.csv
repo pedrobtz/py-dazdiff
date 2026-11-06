@@ -1,0 +1,5 @@
+ID,Region,Amount,Units,loaded_at
+1,north,100,10.4,2026-09-29
+2,south,200.5,20,2026-09-29
+3,east,300,30,2026-09-29
+5,north,500,50,2026-09-29
