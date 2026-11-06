@@ -50,3 +50,21 @@ def test_cli_ignores_clashes_in_columns_it_drops(tmp_path, capsys):
     x.write_text("k,v\n1,1.5\n")
     y.write_text("k,v,extra 1,extra_1\n1,1.5,0,0\n")
     assert main([str(x), str(y)]) == 0
+
+
+def test_cli_row_key_sorted(tmp_path):
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("a,b\n1.5,2.5\n3.5,4.5\n")
+    y.write_text("a,b\n3.5,4.5\n1.5,2.5\n")
+    assert main([str(x), str(y), "-q"]) == 2  # no key
+    assert main([str(x), str(y), "--row-key", "position", "-q"]) == 1
+    assert main([str(x), str(y), "--row-key", "sorted", "-q"]) == 0
+
+
+def test_cli_duplicates_aggregate(tmp_path):
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("k,v\n1,1.5\n1,2.5\n")
+    y.write_text("k,v\n1,2.5\n1,1.5\n")
+    assert main([str(x), str(y), "-q"]) == 1
+    assert main([str(x), str(y), "--duplicates", "aggregate", "-q"]) == 0
+    assert main([str(x), str(y), "--duplicates", "error", "-q"]) == 2
