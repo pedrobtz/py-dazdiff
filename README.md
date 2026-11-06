@@ -27,7 +27,7 @@ pip install git+https://github.com/pedrobtz/py-dazdiff       # the library
 
 ```sh
 $ dazdiff examples/benchmark.csv examples/stored.csv --by id,region --only-diffs
-dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: LOADED_AT.
+dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_at.
  ID REGION metric  row_id_x  row_id_y  value_x  value_y  diff  abs_diff  rel_diff  status
   1  north  UNITS         1         1     10.0     10.4   0.4       0.4  0.038462 changed
   2  south AMOUNT         2         2    200.0    200.5   0.5       0.5  0.002494 changed

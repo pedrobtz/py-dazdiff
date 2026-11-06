@@ -10,14 +10,14 @@ from collections.abc import Sequence
 import pandas as pd
 
 from . import __version__
-from .core import DiffError, diff_summary, diff_table, is_equal, normalize_names
+from .core import DiffError, _canon, diff_summary, diff_table, is_equal
 
 
 def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
     """CSV carries no types: where one file reads a column as int and the other as
     float, read both as float so values are not truncated by the cast."""
-    ny = dict(zip(normalize_names(y.columns), y.columns, strict=True))
-    for cx, nx in zip(x.columns, normalize_names(x.columns), strict=True):
+    ny = dict(zip([_canon(c) for c in y.columns], y.columns, strict=True))
+    for cx, nx in zip(x.columns, [_canon(c) for c in x.columns], strict=True):
         cy = ny.get(nx)
         if cy is None:
             continue
