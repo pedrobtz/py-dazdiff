@@ -20,3 +20,8 @@
 - Arguments after `x` and `y` are keyword-only; the result's `attrs` hold
   `shape` and `mode`.
 - Requires pandas 2.2.2 or later.
+- `duplicates="pair"` is now `duplicates="disambiguate"`, as in daffiz.
+- `duplicates="aggregate"` compares the multiset of values per key and
+  measure (`attrs["shape"] == "groups"`).
+- `row_key="position"` and `"sorted"` add a `row_number` key, so tables
+  whose columns are all measures can be compared; the CLI has `--row-key`.

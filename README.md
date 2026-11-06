@@ -43,7 +43,8 @@ dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_a
 | `-t, --tolerance` | absolute tolerance |
 | `-r, --rel-tol` | relative tolerance (relative to the larger magnitude) |
 | `--no-truncate` | refuse casts that would truncate values to integers |
-| `--duplicates` | `pair` repeated keys in arrival order (default) or `error` |
+| `--duplicates` | `disambiguate` repeated keys in arrival order (default), `aggregate` them as multisets, or `error` |
+| `--row-key` | `position` or `sorted`: add a `row_number` key when every column is a measure |
 | `--sep` | CSV separator |
 | `-o, --output FILE` | write the full comparison to a CSV file |
 | `-s, --summary` | print the per-measure summary instead |

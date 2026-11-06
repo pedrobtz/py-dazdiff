@@ -140,13 +140,20 @@ equal infinities), or, for a finite pair, `abs_diff <= tolerance` or
   since identical rows are interchangeable.
 - **aggregate**: compares the multiset of values per key and measure;
   `tolerance` and `rel_tol` must be 0.
-- **error**: refuses.
+- **error**: refuses, also for repeated rows when there are no measures,
+  since the caller asked for it (decided 2026-11-06, Stage 2).
+- Aggregated values are sorted tuples (`values_x`, `values_y`), missing
+  values last; `-0.0` and `0.0` are the same value.
 
 ### 4.7 Virtual row keys
 
 When every column is a measure, `row_key` adds a `row_number` key:
 `"position"` numbers rows as they come; `"sorted"` numbers them after sorting
 both tables by their compared columns.
+
+- Non-measure columns, if any, stay in the identity next to `row_number`.
+- `row_key` cannot be combined with `by` (decided 2026-11-06, Stage 2: `by`
+  names the identity, `row_key` invents one).
 
 ### 4.8 Result
 
@@ -232,6 +239,5 @@ What comes later is listed in [roadmap.md](roadmap.md#after-010).
   Proposed: keep `dazdiff` for the distribution, import and CLI, and reserve
   `daffiz` only if the R and Python packages should share a name. Blocks the
   v0.1.0 readiness stage.
-- **Argument name `duplicates="pair"`.** The current code uses `"pair"`;
-  daffiz uses `"disambiguate"`. Proposed: rename to `"disambiguate"` for
-  parity (nothing is released yet).
+- ~~Argument name `duplicates="pair"`.~~ Decided 2026-11-06, Stage 2:
+  renamed to `"disambiguate"` for parity with daffiz; nothing was released.

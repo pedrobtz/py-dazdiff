@@ -55,7 +55,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="refuse casts that would truncate values to integers",
     )
-    p.add_argument("--duplicates", choices=["pair", "error"], default="pair")
+    p.add_argument(
+        "--duplicates",
+        choices=["disambiguate", "aggregate", "error"],
+        default="disambiguate",
+        help="repeated keys: pair in arrival order (default), compare as multisets, or refuse",
+    )
+    p.add_argument(
+        "--row-key",
+        choices=["none", "position", "sorted"],
+        default="none",
+        help="add a row_number key: rows as they come, or after sorting both files",
+    )
     p.add_argument("--sep", default=",", help="CSV field separator (default ',')")
     p.add_argument("-o", "--output", help="write the full comparison to this CSV file")
     p.add_argument("-s", "--summary", action="store_true", help="print the per-measure summary")
@@ -88,6 +99,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 x,
                 y,
                 by=args.by,
+                row_key=args.row_key,
                 measures=measures,
                 mode=args.mode,
                 tolerance=args.tolerance,
