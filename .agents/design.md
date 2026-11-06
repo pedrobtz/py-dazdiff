@@ -101,6 +101,12 @@ bool, string, datetime.
   Truncations are in `result.attrs["truncated"]`.
 - A value that cannot be cast is an error naming the column and the value.
 - Both pandas 2 (object strings) and pandas 3 (`str` dtype) are supported.
+- To bool: numbers must be 0 or 1; text is `true`/`t`/`yes`/`1` or
+  `false`/`f`/`no`/`0`, case-insensitive. To string: integral floats lose
+  their `.0`, so a key read as `1.0` matches `"1"`. Categorical and other
+  dtypes are refused as targets. (Decided 2026-11-06, Stage 1.)
+- `attrs["truncated"]` is keyed by the normalized column name, as the result
+  is; notes and errors use the name as written.
 
 ### 4.4 Measures and identity
 
@@ -113,7 +119,8 @@ bool, string, datetime.
   It may have no measures: then the question is "do they have the same
   rows?", and the result has one row per source row (§4.8).
 - If the two tables have keys but no key in common, it is an error: the
-  comparison would say nothing useful.
+  comparison would say nothing useful. An empty table is not disjoint: its
+  rows are all `only_x` or `only_y` (decided 2026-11-06).
 
 ### 4.5 Values and tolerance
 
@@ -198,7 +205,10 @@ prints the result, `--summary`, or `--report`.
 
 ## 8 Dependencies and supported versions
 
-- Runtime: `pandas>=2.0` (and numpy through it). No other hard dependency.
+- Runtime: `pandas>=2.2.2` (and numpy through it). No other hard dependency.
+  Decided 2026-11-06: 2.2.2 is the first pandas that loads against numpy 2;
+  with `pandas>=2.0` the lowest-dependencies resolution installed pandas 2.0
+  with numpy 2 and failed to import.
 - Python: 3.10 to 3.14. Python 3.10 resolves to pandas 2.x, which keeps the
   pandas 2 path tested.
 - Dev: `pytest`, `ruff`; managed with `uv`.

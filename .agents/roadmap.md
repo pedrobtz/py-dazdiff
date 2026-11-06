@@ -28,7 +28,7 @@ share one class.
 | Profile | Runs | Target |
 | --- | --- | --- |
 | `quick` | `ruff check`, `ruff format --check`, pytest on Ubuntu, Python 3.13, latest pandas | under 5 minutes |
-| `full` | pytest on Ubuntu, macOS and Windows × Python 3.10–3.14; a lowest-direct-dependencies job (`uv sync --resolution lowest-direct`, pandas 2.0); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
+| `full` | pytest on Ubuntu, macOS and Windows × Python 3.10–3.14; a lowest-direct-dependencies job (`uv run --resolution lowest-direct`, pandas 2.2.2); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
 
 Pull requests run `quick`; pushes to `main` and pull requests labelled
 `full-ci` run `full`. A stage earns `full` only when the full set checks
@@ -39,7 +39,7 @@ something the stage introduces and later stages build on.
 | Stage | Title | CI | Issue | Pull request | Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazdiff/issues/2) | [#12](https://github.com/pedrobtz/py-dazdiff/pull/12) | 2026-11-06 |
-| 1 | [Core parity](#stage-1--core-parity) | full | [#3](https://github.com/pedrobtz/py-dazdiff/issues/3) | | |
+| 1 | [Core parity](#stage-1--core-parity) | full | [#3](https://github.com/pedrobtz/py-dazdiff/issues/3) |  | 2026-11-06 |
 | 2 | [Duplicates and row keys](#stage-2--duplicates-and-row-keys) | quick | [#4](https://github.com/pedrobtz/py-dazdiff/issues/4) | | |
 | 3 | [Text report](#stage-3--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
 | 4 | [Test helper](#stage-4--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | | |
