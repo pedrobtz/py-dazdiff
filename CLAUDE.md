@@ -33,8 +33,8 @@ merges on.
 
 ## Rules
 
-- Source lives in `src/dazdiff/`; `core.py` is the library, `cli.py` the
-  command. Public names are re-exported from `__init__.py`.
+- Source lives in `src/dazdiff/`; `core.py` is the library, `report.py` the
+  text report, `cli.py` the command. Public names are re-exported from `__init__.py`.
 - Behaviour follows the R package unless `design.md` §2.1 records a divergence.
 - The caller's DataFrames are never modified.
 - Every user-visible change gets a line under `## Unreleased` in

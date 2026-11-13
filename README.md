@@ -50,6 +50,7 @@ dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_a
 | `--sep` | CSV separator |
 | `-o, --output FILE` | write the full comparison to a CSV file |
 | `-s, --summary` | print the per-measure summary instead |
+| `-R, --report` | print a text report; `--x-name`, `--y-name` label the files, `--ascii` avoids box-drawing characters |
 | `-e, --explain [COLUMN]` | print which key values split same from not same; with a column, per value of it |
 | `--joined` | with `--explain`, count only rows found in both files |
 | `-d, --only-diffs` | print only rows that are not `same` |

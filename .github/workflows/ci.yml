@@ -57,6 +57,16 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: uv run --frozen pytest
+      # The report on this platform's real stdout: on Windows a console that cannot
+      # encode box-drawing characters must get the ASCII fallback, not a crash.
+      - name: dazdiff --report on the examples
+        shell: bash
+        run: |
+          set +e
+          uv run --frozen dazdiff examples/benchmark.csv examples/stored.csv --by id,region --report
+          status=$?
+          set -e
+          test "$status" -eq 1   # the example files differ
 
   lowest:
     if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}

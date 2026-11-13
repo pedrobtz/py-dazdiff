@@ -1,0 +1,26 @@
++=============================================================+
+|                       dazdiff report                        |
++=============================================================+
+   Identity: id
+   Mode:     benchmark: y is tested against x
+
+ Columns
+ -------
+   Compared 2 columns: 1 key, 1 measure.
+
+ Rows
+ ----
+   x rows    y rows
+     0         1
+
+ Measures
+ --------
+   Every measure matches on every row found in both tables (1).
+
+ Rows only in y
+ --------------
+   +-----+
+   | id  |
+   +-----+
+   | "d" |
+   +-----+

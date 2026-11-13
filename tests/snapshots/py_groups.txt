@@ -1,0 +1,27 @@
++=============================================================+
+|                       dazdiff report                        |
++=============================================================+
+   Identity: id
+   Mode:     benchmark: y is tested against x
+   Repeated keys: each key's values are compared as a multiset.
+
+ Columns
+ -------
+   Compared 2 columns: 1 key, 1 measure.
+
+ Rows
+ ----
+   x keys               y keys
+     2     (no change)    2
+
+   +=+=+=+=+=+...+=+=+=+=+=+.......................+
+   | | | | | | ! | | | | | |  2 changed (100.00%)  |
+   +=+=+=+=+=+...+=+=+=+=+=+.......................+
+
+ Measures
+ --------
+   +---------+------------+
+   | Measure | Match rate |
+   +---------+------------+
+   | v       |      0.00% |
+   +---------+------------+

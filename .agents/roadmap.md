@@ -44,7 +44,7 @@ something the stage introduces and later stages build on.
 | 2 | [Duplicates and row keys](#stage-2--duplicates-and-row-keys) | quick | [#4](https://github.com/pedrobtz/py-dazdiff/issues/4) | [#14](https://github.com/pedrobtz/py-dazdiff/pull/14) | 2026-11-06 |
 | 3 | [Parity with dazdiff main](#stage-3--parity-with-dazdiff-main) | full | [#15](https://github.com/pedrobtz/py-dazdiff/issues/15) | [#18](https://github.com/pedrobtz/py-dazdiff/pull/18) | 2026-11-13 |
 | 4 | [Explain](#stage-4--explain) | quick | [#16](https://github.com/pedrobtz/py-dazdiff/issues/16) | [#19](https://github.com/pedrobtz/py-dazdiff/pull/19) | 2026-11-13 |
-| 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
+| 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | [#20](https://github.com/pedrobtz/py-dazdiff/pull/20) | 2026-11-13 |
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | | |
 | 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | | |
 | 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | | |
@@ -219,7 +219,7 @@ text, bounded in length, in Unicode or ASCII.
 
 **Work.**
 - `diff_report(d, x_name=, y_name=, sample_k=)` returning a `DiffReport`
-  with `__str__` and `format(unicode=, width=)`, as in R.
+  with `__str__` and `format(unicode=)`, as in R.
 - Sections per §5: header, columns (compared, dropped, excluded, ignored,
   truncated), row alignment diagram, measures table (no "Top changes"),
   keys only in `x` / only in `y`.
