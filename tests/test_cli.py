@@ -135,3 +135,11 @@ def test_python_dash_m_runs_the_cli(monkeypatch, capsys):
         runpy.run_module("dazdiff", run_name="__main__")
     assert e.value.code == 0
     assert capsys.readouterr().out.startswith("dazdiff ")
+
+
+def test_version_comes_from_the_package_metadata():
+    from importlib.metadata import version
+
+    import dazdiff
+
+    assert dazdiff.__version__ == version("dazdiff")

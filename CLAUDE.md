@@ -37,8 +37,8 @@ merges on.
   text report, `cli.py` the command. Public names are re-exported from `__init__.py`.
 - Behaviour follows the R package unless `design.md` §2.1 records a divergence.
 - The caller's DataFrames are never modified.
-- Every user-visible change gets a line under `## Unreleased` in
-  `CHANGELOG.md`.
+- Every user-visible change gets a line under the top section of
+  `CHANGELOG.md` (`## 0.1.0 (unreleased)` until 0.1.0 ships).
 
 ## Definition of done
 

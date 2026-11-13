@@ -1,5 +1,9 @@
 # dazdiff
 
+[![CI](https://github.com/pedrobtz/py-dazdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/pedrobtz/py-dazdiff/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/dazdiff)](https://pypi.org/project/dazdiff/)
+[![Python](https://img.shields.io/pypi/pyversions/dazdiff)](https://pypi.org/project/dazdiff/)
+
 `dazdiff` compares two tables value by value, from Python or from the command
 line. It is a small Python take on the R package
 [pedrobtz/dazdiff](https://github.com/pedrobtz/dazdiff).
@@ -19,9 +23,13 @@ The result has one row per key and measure, with `row_id_x`, `row_id_y`,
 ## Installation
 
 ```sh
-uv tool install git+https://github.com/pedrobtz/py-dazdiff   # the CLI
-pip install git+https://github.com/pedrobtz/py-dazdiff       # the library
+pip install dazdiff        # the library and the CLI
+uv tool install dazdiff    # the CLI on its own
 ```
+
+It needs Python 3.10 or later and pandas 2.2.2 or later. The development
+version installs from GitHub:
+`pip install git+https://github.com/pedrobtz/py-dazdiff`.
 
 ## Command line
 

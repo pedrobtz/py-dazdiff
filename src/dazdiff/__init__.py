@@ -1,5 +1,7 @@
 """dazdiff: compare two tables value by value."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .core import (
     DiffError,
     DiffNote,
@@ -13,7 +15,10 @@ from .core import (
 )
 from .report import DiffReport, diff_report
 
-__version__ = "0.1.0.dev0"
+try:  # one source: the version in pyproject.toml, read from the installed metadata
+    __version__ = version("dazdiff")
+except PackageNotFoundError:  # pragma: no cover - running from a source tree
+    __version__ = "0+unknown"
 __all__ = [
     "DiffError",
     "DiffNote",
