@@ -56,6 +56,16 @@ First release.
 - `assert_table_equal(actual, expected)` asserts that a table matches a
   reference within a relative `1.5e-8`, failing with `diff_summary()` and
   the first records that differ.
+- A cast to an integer column is exact above 2**53 and refuses values
+  outside the column's range, instead of wrapping them around.
+- Integer measures are compared exactly, so values above 2**53 that differ
+  are `changed`.
+- A number cast to a date-time column is refused instead of being read as
+  nanoseconds since 1970.
+- The CLI no longer turns an integer key column into a measure when the
+  other file reads it as float only because of an empty value.
+- Every CLI error exits with status 2 and a one-line message, including
+  errors writing `--output` and undecodable files.
 - The report's "(...and N more)" counts keys not shown, not rows.
 - Extra columns of `y` whose names normalize to nothing or clash are listed
   as dropped, in `attrs["dropped"]` and the note.

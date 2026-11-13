@@ -127,6 +127,12 @@ bool, string, datetime.
   column, its count and an example; `truncate=False` refuses with an error.
   Truncations are in `result.attrs["truncated"]`.
 - A value that cannot be cast is an error naming the column and the value.
+- To integer, exactly (decided 2026-11-13, Stage 9 review, #25): integer
+  dtypes and integer text become Python ints, so a value above 2**53 keeps
+  every digit; other numbers go through float and truncate. A value outside
+  the target dtype's range (int8 … uint64) is an error, never wrapped.
+- To date-time: numbers and booleans are refused (#27); pandas would read
+  them as nanoseconds since 1970.
 - Both pandas 2 (object strings) and pandas 3 (`str` dtype) are supported.
 - To bool: numbers must be 0 or 1; text is `true`/`t`/`yes`/`1` or
   `false`/`f`/`no`/`0`, case-insensitive. To string: see the number-to-text
@@ -173,7 +179,9 @@ equal infinities), or, for a finite pair, `abs_diff <= tolerance` or
 - `diff = value_y - value_x`; `abs_diff = |diff|`.
 - `rel_diff = abs_diff / max(|value_x|, |value_y|)`, 0 when both are 0,
   computed by scaling before subtracting so it cannot overflow.
-- Integer measures are compared as float.
+- Integer measures are compared as integers (decided 2026-11-13, Stage 9
+  review, #26): `status` and `diff` are exact above 2**53, `diff` computed in
+  int64 with overflow detected. `value_x`/`value_y` are still float64.
 
 ### 4.6 Duplicate keys
 
@@ -297,10 +305,14 @@ usable from pytest or unittest, with no pytest plugin.
 prints the result, `--summary`, or `--report`.
 
 - Every `diff_table()` argument has a flag; list values are comma-separated.
-- Exit status: 0 when every row is `same`, 1 when they differ, 2 on error.
+- Exit status: 0 when every row is `same`, 1 when they differ, 2 on any
+  error, with a one-line message and no traceback (#29).
 - Warnings and notes go to stderr; `--quiet` silences everything.
-- CSV carries no types: a column read as integer in one file and float in
-  the other is read as float in both, so the cast does not truncate it.
+- CSV carries no types: a column read as integer in one file and as float
+  holding a fraction in the other is read as float in both, so the cast does
+  not truncate it. A float column of whole numbers (float only because of an
+  empty value) is left alone, so an integer key stays a key (decided
+  2026-11-13, Stage 9 review, #28).
 - `--output FILE` writes the full result as CSV.
 - `--report` prints `diff_report()`, naming the tables by their file names
   unless `--x-name`/`--y-name` say otherwise; `--ascii` forces ASCII

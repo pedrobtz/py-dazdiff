@@ -8,23 +8,29 @@ import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from . import __version__
-from .core import DiffError, _canon, diff_explain, diff_summary, diff_table, is_matching
+from .core import _canon, diff_explain, diff_summary, diff_table, is_matching
 from .report import diff_report
 
 
 def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
     """CSV carries no types: where one file reads a column as int and the other as
-    float, read both as float so values are not truncated by the cast."""
+    float with a fraction, read both as float so the cast does not truncate it.
+
+    A float column of whole numbers is float only because it has an empty value; it
+    casts to int exactly, so it is left alone and keeps its role: widening it would
+    turn an integer key into a "numeric" measure.
+    """
     ny = dict(zip([_canon(c) for c in y.columns], y.columns, strict=True))
     for cx, nx in zip(x.columns, [_canon(c) for c in x.columns], strict=True):
         cy = ny.get(nx)
         if cy is None:
             continue
         kinds = {x[cx].dtype.kind, y[cy].dtype.kind}
-        if kinds == {"i", "f"}:
+        if kinds == {"i", "f"} and _has_fraction(x[cx] if x[cx].dtype.kind == "f" else y[cy]):
             x[cx] = x[cx].astype(float)
             y[cy] = y[cy].astype(float)
 
@@ -39,6 +45,12 @@ def _printable(text: str, stream) -> bool:
     except (UnicodeEncodeError, LookupError):
         return False
     return True
+
+
+def _has_fraction(s: pd.Series) -> bool:
+    v = s.dropna().to_numpy(dtype=float)
+    v = v[np.isfinite(v)]
+    return bool((v != np.trunc(v)).any())
 
 
 def _csv_list(value: str) -> list[str]:
@@ -130,38 +142,41 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    measures = args.measures
-    if measures not in ("numeric", "numeric+integer"):
-        measures = _csv_list(measures)
+    try:
+        return _run(args)
+    except Exception as e:  # every failure is exit 2: 1 means "the tables differ"
+        print(f"dazdiff: error: {e}", file=sys.stderr)
+        return 2
 
+
+def _run(args: argparse.Namespace) -> int:
     def show_warning(message, category, *_args, **_kwargs):
         if not args.quiet:
             print(f"dazdiff: {message}", file=sys.stderr)
 
-    try:
-        x = pd.read_csv(args.x, sep=args.sep)
-        y = pd.read_csv(args.y, sep=args.sep)
-        _align_numeric(x, y)
-        with warnings.catch_warnings():
-            warnings.simplefilter("always")
-            warnings.showwarning = show_warning
-            d = diff_table(
-                x,
-                y,
-                by=args.by,
-                exclude=args.exclude,
-                cast=args.cast,
-                row_key=args.row_key,
-                measures=measures,
-                mode=args.mode,
-                tolerance=args.tolerance,
-                rel_tol=args.rel_tol,
-                truncate=args.truncate,
-                duplicates=args.duplicates,
-            )
-    except (DiffError, OSError, pd.errors.ParserError, pd.errors.EmptyDataError) as e:
-        print(f"dazdiff: error: {e}", file=sys.stderr)
-        return 2
+    x = pd.read_csv(args.x, sep=args.sep)
+    y = pd.read_csv(args.y, sep=args.sep)
+    measures = args.measures
+    if measures not in ("numeric", "numeric+integer"):
+        measures = _csv_list(measures)
+    _align_numeric(x, y)
+    with warnings.catch_warnings():
+        warnings.simplefilter("always")
+        warnings.showwarning = show_warning
+        d = diff_table(
+            x,
+            y,
+            by=args.by,
+            exclude=args.exclude,
+            cast=args.cast,
+            row_key=args.row_key,
+            measures=measures,
+            mode=args.mode,
+            tolerance=args.tolerance,
+            rel_tol=args.rel_tol,
+            truncate=args.truncate,
+            duplicates=args.duplicates,
+        )
 
     if args.output:
         d.to_csv(args.output, index=False)
@@ -173,11 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 text = r.format(unicode=False)
             print(text)
         elif args.explain is not None:
-            try:
-                e = diff_explain(d, args.explain or None, among="joined" if args.joined else "all")
-            except DiffError as err:
-                print(f"dazdiff: error: {err}", file=sys.stderr)
-                return 2
+            e = diff_explain(d, args.explain or None, among="joined" if args.joined else "all")
             print(e.to_string(index=False))
         elif args.summary:
             print(diff_summary(d).to_string(index=False))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import warnings
 from collections.abc import Sequence
@@ -216,6 +217,73 @@ def _stamp_to_text(y: pd.Series) -> pd.Series:
     return txt
 
 
+_INT_TEXT = re.compile(r"[+-]?[0-9]+")
+
+
+def _nullable(dtype) -> str:
+    """The pandas nullable integer dtype for an integer dtype: int8 -> Int8."""
+    if isinstance(dtype, pd.api.extensions.ExtensionDtype):
+        return str(dtype)
+    return str(dtype).replace("uint", "UInt").replace("int", "Int")
+
+
+def _cast_to_int(
+    y: pd.Series, x: pd.Series, name: str, truncate: bool, truncated: dict
+) -> pd.Series:
+    """Cast ``y`` to the integer dtype of ``x`` exactly.
+
+    Integer dtypes and integer text become Python ints, so a value above 2**53 keeps
+    every digit; other numbers go through float, where a fraction truncates. A value
+    outside the target dtype's range is refused rather than wrapped around.
+    """
+    target = x.dtype.numpy_dtype if hasattr(x.dtype, "numpy_dtype") else x.dtype
+    info = np.iinfo(target)
+    missing = y.isna().to_numpy()
+    if _is_int(y) or _is_bool(y):
+        values = [None if m else int(v) for v, m in zip(y.tolist(), missing, strict=True)]
+        frac: list = []
+    else:
+        values, frac = [], []
+        for v, m in zip(y.tolist(), missing, strict=True):
+            if m:
+                values.append(None)
+                continue
+            if isinstance(v, str) and _INT_TEXT.fullmatch(v.strip()):
+                values.append(int(v.strip()))
+                continue
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                raise DiffError(
+                    f"Cannot cast `{name}` to a number: {_show(v)} is not one."
+                ) from None
+            if math.isnan(f):
+                raise DiffError(f"Cannot cast `{name}` to a number: {_show(v)} is not one.")
+            if math.isinf(f):
+                raise DiffError(f"Cannot cast `{name}` to integer: it holds infinite values.")
+            t = math.trunc(f)
+            if t != f:
+                frac.append((f, float(t)))
+            values.append(t)
+    if frac:
+        if not truncate:
+            raise DiffError(
+                f"Casting `{name}` to integer would truncate {len(frac)} value(s), "
+                f"e.g. {_show(frac[0][0])}; pass truncate=True to allow it."
+            )
+        truncated[name] = frac
+    bad = next((v for v in values if v is not None and not info.min <= v <= info.max), None)
+    if bad is not None:
+        raise DiffError(
+            f"Cannot cast `{name}` to {target}: {bad} is outside the range "
+            f"{info.min} to {info.max}."
+        )
+    out = pd.Series(pd.array(values, dtype=_nullable(target)), index=y.index)
+    if isinstance(x.dtype, pd.api.extensions.ExtensionDtype) or out.isna().any():
+        return out.astype(_nullable(x.dtype))
+    return out.astype(x.dtype)
+
+
 def _cast_to(
     y: pd.Series, x: pd.Series, name: str, truncate: bool, truncated: dict, alerts: list
 ) -> pd.Series:
@@ -233,7 +301,10 @@ def _cast_to(
         missing = np.nan if pd.api.types.is_object_dtype(x) or _is_float(x) else pd.NA
         return pd.Series([missing] * len(y), index=y.index, dtype=object).astype(target)
 
-    if _is_int(x) or _is_float(x):
+    if _is_int(x):
+        return _cast_to_int(y, x, name, truncate, truncated)
+
+    if _is_float(x):
         if _is_bool(y):
             num = y.astype(float)
         else:
@@ -241,22 +312,7 @@ def _cast_to(
             if (y.notna() & num.isna()).any():
                 v = _first_bad(y, num)
                 raise DiffError(f"Cannot cast `{name}` to a number: {_show(v)} is not one.")
-            num = num.astype(float)
-        if _is_float(x):
-            return num.astype(x.dtype)
-        frac = num.notna() & np.isfinite(num) & (num != np.trunc(num))
-        if frac.any():
-            if not truncate:
-                raise DiffError(
-                    f"Casting `{name}` to integer would truncate {int(frac.sum())} value(s), "
-                    f"e.g. {_show(num[frac].iloc[0])}; pass truncate=True to allow it."
-                )
-            pairs = zip(num[frac].tolist(), np.trunc(num[frac]).tolist(), strict=True)
-            truncated[name] = list(pairs)
-        if (~np.isfinite(num.fillna(0))).any():
-            raise DiffError(f"Cannot cast `{name}` to integer: it holds infinite values.")
-        num = np.trunc(num)
-        return num.astype("Int64" if num.isna().any() else x.dtype)
+        return num.astype(float).astype(x.dtype)
 
     if _is_bool(x):
         if _is_int(y) or _is_float(y):
@@ -275,6 +331,13 @@ def _cast_to(
         return out.astype("boolean" if out.isna().any() else x.dtype)
 
     if _is_datetime(x):
+        # pandas reads a number as nanoseconds since 1970, which is never what a
+        # number in a date column means, so numbers are refused rather than guessed.
+        if _is_int(y) or _is_float(y) or _is_bool(y):
+            raise DiffError(
+                f"Cannot cast `{name}` to a date-time: it holds numbers ({y.dtype}), "
+                "not dates; convert it first."
+            )
         conv = pd.to_datetime(y, errors="coerce")
         if (y.notna() & conv.isna()).any():
             v = _first_bad(y, conv)
@@ -337,7 +400,51 @@ def _add_seq(df: pd.DataFrame, by: list[str], duplicates: str, label: str, alert
 # --- values ------------------------------------------------------------------
 
 
+def _int_diff(vx: pd.Series, vy: pd.Series):
+    """``vy - vx`` for two integer columns, exact as an int64 where it fits, and
+    ``vy == vx`` exactly; NaN where either is missing."""
+    miss = vx.isna().to_numpy() | vy.isna().to_numpy()
+    if "uint64" in str(vx.dtype).lower() or "uint64" in str(vy.dtype).lower():
+        pairs = zip(vx.tolist(), vy.tolist(), miss, strict=True)
+        exact = [0 if m else int(b) - int(a) for a, b, m in pairs]
+        diff = np.array([float(d) for d in exact])
+        equal = ~miss & np.array([d == 0 for d in exact], dtype=bool)
+    else:
+        a = vx.to_numpy(dtype="int64", na_value=0)
+        b = vy.to_numpy(dtype="int64", na_value=0)
+        with np.errstate(over="ignore"):
+            d = b - a
+        # Two's complement: b - a overflowed when b and a differ in sign and the
+        # result's sign is not b's.
+        over = ((b ^ a) & (b ^ d)) < 0
+        diff = d.astype(float)
+        diff[over] = b[over].astype(float) - a[over].astype(float)
+        equal = ~miss & ~over & (d == 0)
+    diff[miss] = np.nan
+    return diff, equal
+
+
 def _classify(vx: pd.Series, vy: pd.Series, tolerance: float, rel_tol: float):
+    if _is_int(vx) and _is_int(vy):
+        # Compared as integers: as floats, values above 2**53 that differ by a few
+        # units are the same number.
+        both_na = (vx.isna() & vy.isna()).to_numpy()
+        diff, equal = _int_diff(vx, vy)
+        fx = vx.to_numpy(dtype=float, na_value=np.nan)
+        fy = vy.to_numpy(dtype=float, na_value=np.nan)
+        finite = ~np.isnan(diff)
+        abs_diff = np.abs(diff)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            scale = np.maximum(np.abs(fx), np.abs(fy))
+            rel = np.where(scale > 0, abs_diff / np.where(scale > 0, scale, 1.0), 0.0)
+        rel_diff = np.where(equal, 0.0, np.where(finite, rel, np.nan))
+        close = finite & ((abs_diff <= tolerance) | (rel_diff <= rel_tol))
+        return (
+            np.where(equal, 0.0, diff),
+            np.where(equal, 0.0, abs_diff),
+            rel_diff,
+            both_na | equal | close,
+        )
     vx = vx.to_numpy(dtype=float, na_value=np.nan)
     vy = vy.to_numpy(dtype=float, na_value=np.nan)
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
@@ -751,6 +858,12 @@ def _no_overlap(x: pd.DataFrame, y: pd.DataFrame, x_names: dict, by: list[str]) 
 
 
 def _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts):
+    # An outer merge turns an integer column with a missing partner into float64;
+    # nullable integers keep the values exact for _classify().
+    for c in meas:
+        if _is_int(x[c]) and _is_int(y[c]):
+            x[c] = x[c].astype(_nullable(x[c].dtype))
+            y[c] = y[c].astype(_nullable(y[c].dtype))
     x = _add_seq(x, by, dup_rule, "x", alerts)
     y = _add_seq(y, by, dup_rule, "y", alerts)
     keys = [*by, "key_seq"]
