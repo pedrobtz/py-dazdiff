@@ -68,7 +68,7 @@ diff_summary(d) -> pd.DataFrame           # counts per measure, plus magnitudes
 diff_report(d, x_name="x", y_name="y", *, sample_k=5) -> DiffReport   # str(report) is the text
 is_matching(d, *, tolerance=None, rel_tol=None) -> bool
 diff_explain(d, column=None, *, among="all") -> pd.DataFrame   # or among="joined"
-assert_table_equal(actual, expected, *, rel_tol=1.5e-8, **kwargs) -> None
+assert_table_equal(actual, expected, *, rel_tol=1.5e-8, max_rows=10, **kwargs) -> pd.DataFrame
 normalize_names(names) -> list[str]
 
 class DiffError(ValueError)               # the question cannot be answered
@@ -271,12 +271,23 @@ with it `top_k`. Sections are bounded by `sample_k`.
 
 ## 6 Test helper
 
-`assert_table_equal(actual, expected, **kwargs)` runs `diff_table(actual,
-expected-as-benchmark)` and raises `AssertionError` with `diff_summary()`
-and the first differing rows. Defaults: `rel_tol=1.5e-8`
-(`sqrt(float eps)`, as the R package's `expect_table_equal()`), and
-`duplicates="error"` so a repeated key fails rather than being paired.
-It is plain Python, usable from pytest or unittest, with no pytest plugin.
+`assert_table_equal(actual, expected, **kwargs)` runs
+`diff_table(expected, actual)`, `expected` as the benchmark, and raises
+`AssertionError` with `diff_summary()` and the first `max_rows` records that
+differ; it returns the comparison when they match. It is plain Python,
+usable from pytest or unittest, with no pytest plugin.
+
+- `rel_tol` defaults to `sqrt(float eps)` (about 1.5e-8), as the R package's
+  `expect_table_equal()`; with `duplicates="aggregate"`, which compares
+  exactly, it defaults to 0.
+- Repeated keys follow the R package (decided 2026-11-13, Stage 6, replacing
+  `duplicates="error"` as the default): the pairing `DiffWarning` becomes a
+  `DiffError` unless `duplicates` is given, so an assertion never decides
+  identity by arrival order; repeated whole rows (no measures) are paired,
+  since they are identical, where `"error"` would have refused them.
+- Tables that share no key fail the assertion; every other `DiffError`
+  (missing columns, uncastable values) is raised as is, since the question
+  cannot be answered.
 
 ## 7 CLI
 
