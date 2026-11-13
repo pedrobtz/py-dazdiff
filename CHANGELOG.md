@@ -50,3 +50,6 @@
   match rate and largest differences, in Unicode or ASCII (`--ascii`, and
   automatically when the terminal cannot show Unicode).
 - `attrs["paired"]` says whether repeated keys were paired.
+- `assert_table_equal(actual, expected)` asserts that a table matches a
+  reference within a relative `1.5e-8`, failing with `diff_summary()` and
+  the first records that differ.
