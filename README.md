@@ -50,6 +50,8 @@ dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_a
 | `--sep` | CSV separator |
 | `-o, --output FILE` | write the full comparison to a CSV file |
 | `-s, --summary` | print the per-measure summary instead |
+| `-e, --explain [COLUMN]` | print which key values split same from not same; with a column, per value of it |
+| `--joined` | with `--explain`, count only rows found in both files |
 | `-d, --only-diffs` | print only rows that are not `same` |
 | `-q, --quiet` | print nothing |
 
@@ -73,6 +75,10 @@ diff_summary(d)
 is_matching(d)  # False
 is_matching(d, tolerance=1)  # judged again at a looser threshold
 ```
+
+`diff_explain(d)` says which key columns separate the rows that match from
+those that do not, and `diff_explain(d, "region")` counts each status per
+region, most differences first.
 
 `exclude=` leaves technical columns (load stamps, run ids) out of both tables.
 When a number of the tested table is cast to the benchmark's text, it is

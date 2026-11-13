@@ -241,7 +241,8 @@ extra keys were added 2026-11-13, as R's attributes. Row ids are
   every row is marked `identifies` and ranked last; the others by fewest
   mixed, then fewest values. For a key column the unit is the row (a row
   matches when all its measures do), for `groups` the key, for `metric` the
-  value. `diff_explain(d, column)` returns one row per value of that
+  value. A row is its pair of `row_id_x`/`row_id_y`, since the `cells` result
+  has no `key_seq`, so paired duplicates count as rows of their own. `diff_explain(d, column)` returns one row per value of that
   column: `n`, `n_same`, `n_changed`, `n_only_x`, `n_only_y`, `class`, most
   differences first. `among="joined"` counts only rows found in both
   tables. (Added 2026-11-13, after R #66.)
@@ -280,7 +281,8 @@ prints the result, `--summary`, or `--report`.
   the other is read as float in both, so the cast does not truncate it.
 - `--output FILE` writes the full result as CSV.
 - `--exclude` and `--no-cast` map to `exclude` and `cast=False`;
-  `--explain [COLUMN]` prints `diff_explain()` (added 2026-11-13).
+  `--explain [COLUMN]` prints `diff_explain()`, with `--joined` for
+  `among="joined"` (added 2026-11-13).
 - `python -m dazdiff` is the same program.
 
 ## 8 Dependencies and supported versions
