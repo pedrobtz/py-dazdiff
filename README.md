@@ -67,8 +67,9 @@ dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_a
 The exit status is `0` when the tables match, `1` when they differ and `2` on
 error, so `dazdiff` works in scripts and CI. Column names are normalized (upper
 case, other characters turned into `_`), so `id` and `ID` pair up. Because CSV
-files carry no types, a column read as integer in one file and as float in the
-other is compared as float.
+files carry no types, a column read as integer in one file and as decimals in
+the other is compared as float; one that is float only because of an empty
+value stays an integer.
 
 `python -m dazdiff` works too.
 

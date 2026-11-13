@@ -56,3 +56,7 @@ First release.
 - `assert_table_equal(actual, expected)` asserts that a table matches a
   reference within a relative `1.5e-8`, failing with `diff_summary()` and
   the first records that differ.
+- The CLI no longer turns an integer key column into a measure when the
+  other file reads it as float only because of an empty value.
+- Every CLI error exits with status 2 and a one-line message, including
+  errors writing `--output` and undecodable files.
