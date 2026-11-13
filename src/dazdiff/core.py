@@ -742,7 +742,9 @@ def _no_overlap(x: pd.DataFrame, y: pd.DataFrame, x_names: dict, by: list[str]) 
             f"{'they label' if len(constant) > 1 else 'it labels'} the table rather than its "
             f"rows: leave {'them' if len(constant) > 1 else 'it'} out with exclude={constant!r}"
         )
-    return DiffError(msg + ".")
+    err = DiffError(msg + ".")
+    err.disjoint = True  # assert_table_equal() reports it as a failure
+    return err
 
 
 def _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts):
@@ -1052,3 +1054,78 @@ def _explain_values(r: pd.DataFrame, col: str) -> pd.DataFrame:
     out = out.sort_values(["_r", col], kind="stable", na_position="last")
     out = out.sort_values("_d", ascending=False, kind="stable", ignore_index=True)
     return out.drop(columns=["_d", "_r"])
+
+
+# --- assert_table_equal -----------------------------------------------------------
+
+_SQRT_EPS = float(np.sqrt(np.finfo(float).eps))
+_UNSET = object()
+
+
+def assert_table_equal(
+    actual: pd.DataFrame,
+    expected: pd.DataFrame,
+    *,
+    rel_tol: float = _UNSET,  # type: ignore[assignment]
+    max_rows: int = 10,
+    **kwargs,
+) -> pd.DataFrame:
+    """Assert that ``actual`` matches ``expected``, for use in tests.
+
+    Runs ``diff_table(expected, actual, ...)``, with ``expected`` as the benchmark,
+    and raises :class:`AssertionError` with :func:`diff_summary` and the first
+    ``max_rows`` records that differ. Tables that share no key fail too. Other
+    keyword arguments go to :func:`diff_table`.
+
+    ``rel_tol`` defaults to ``sqrt(eps)`` (about 1.5e-8), as pytest and testthat
+    compare floats, where :func:`diff_table` is exact; with
+    ``duplicates="aggregate"``, which compares exactly, it defaults to 0. Repeated
+    keys of rows with measures are a :class:`DiffError` unless ``duplicates`` is
+    given: an assertion must not decide identity by arrival order. Repeated whole
+    rows are paired, since they are identical.
+
+    Returns the comparison when the tables match.
+    """
+    if isinstance(max_rows, bool) or not isinstance(max_rows, (int, np.integer)) or max_rows < 0:
+        raise DiffError("`max_rows` must be a single whole number >= 0.")
+    duplicates = kwargs.get("duplicates")
+    if rel_tol is _UNSET:
+        rel_tol = 0.0 if duplicates == "aggregate" else _SQRT_EPS
+
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            d = diff_table(expected, actual, rel_tol=rel_tol, **kwargs)
+    except DiffError as e:
+        if getattr(e, "disjoint", False):
+            raise AssertionError(
+                f"`actual` does not match `expected` (as `y` and `x`): {e}"
+            ) from None
+        raise
+    for w in caught:
+        # diff_table() warns exactly when it pairs repeated keys of rows with
+        # measures, so that warning is the error unless the caller accepted it.
+        if (
+            duplicates is None
+            and issubclass(w.category, DiffWarning)
+            and "repeated key" in str(w.message)
+        ):
+            raise DiffError(
+                f"{w.message}\nassert_table_equal() does not pair duplicate keys; pass "
+                'duplicates="disambiguate" or "aggregate" to accept them.'
+            )
+    for w in caught:
+        warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+
+    off = d[d["status"] != "same"]
+    if not len(off):
+        return d
+    shown = off.head(max_rows)
+    msg = (
+        f"`actual` does not match `expected`: {len(off):,} of {len(d):,} records differ.\n\n"
+        + diff_summary(d).to_string(index=False)
+    )
+    if len(shown):
+        lead = f"First {len(shown)} records that differ:\n" if len(off) > len(shown) else ""
+        msg += "\n\n" + lead + shown.to_string(index=False)
+    raise AssertionError(msg)
