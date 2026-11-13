@@ -1,6 +1,7 @@
 # dazdiff (Python): roadmap
 
-Status: draft 2026-11-06. Implements [design.md](design.md).
+Status: draft 2026-11-06; Stages 3 and 4 inserted 2026-11-13 to follow the R
+package's main (`2bb27b2`), the later stages renumbered. Implements [design.md](design.md).
 Target: v0.1.0, the first PyPI release.
 Tracking: [v0.1.0 (#1)](https://github.com/pedrobtz/py-dazdiff/issues/1), with one sub-issue per
 stage; [PyPI-release (#10)](https://github.com/pedrobtz/py-dazdiff/issues/10).
@@ -41,11 +42,13 @@ something the stage introduces and later stages build on.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazdiff/issues/2) | [#12](https://github.com/pedrobtz/py-dazdiff/pull/12) | 2026-11-06 |
 | 1 | [Core parity](#stage-1--core-parity) | full | [#3](https://github.com/pedrobtz/py-dazdiff/issues/3) | [#13](https://github.com/pedrobtz/py-dazdiff/pull/13) | 2026-11-06 |
 | 2 | [Duplicates and row keys](#stage-2--duplicates-and-row-keys) | quick | [#4](https://github.com/pedrobtz/py-dazdiff/issues/4) | [#14](https://github.com/pedrobtz/py-dazdiff/pull/14) | 2026-11-06 |
-| 3 | [Text report](#stage-3--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
-| 4 | [Test helper](#stage-4--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | | |
-| 5 | [Full CI](#stage-5--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | | |
-| 6 | [v0.1.0 readiness](#stage-6--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | | |
-| 7 | [Review](#stage-7--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | | |
+| 3 | [Parity with dazdiff main](#stage-3--parity-with-dazdiff-main) | full | [#15](https://github.com/pedrobtz/py-dazdiff/issues/15) | | |
+| 4 | [Explain](#stage-4--explain) | quick | [#16](https://github.com/pedrobtz/py-dazdiff/issues/16) | | |
+| 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
+| 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | | |
+| 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | | |
+| 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | | |
+| 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | | |
 
 ## Stage 0 — Package identity
 
@@ -138,7 +141,72 @@ say, in the library and the CLI.
 
 **Design.** [§4.6–4.8](design.md#46-duplicate-keys).
 
-## Stage 3 — Text report
+## Stage 3 — Parity with dazdiff main
+
+**Issue.** [#15](https://github.com/pedrobtz/py-dazdiff/issues/15), sub-issue of
+[v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
+
+**CI.** `full — the number-to-text cast depends on pandas 2 vs 3 string
+dtypes, and the attrs and is_matching() it adds are what the report and test
+helper build on`.
+
+**Goal.** `diff_table()` matches what the R package's main does as of
+2026-11-13 (`2bb27b2`, R #65–#68), as design §4.1a, §4.3, §4.4, §4.8 and
+§4a now say.
+
+**Work.**
+- Roles before casting: only the compared columns of `y` are cast, so an
+  ignored column can neither refuse the comparison nor report a truncation
+  (today it does: an int `note` in `x` vs text in `y`, ignored with `by`,
+  raises `Cannot cast`).
+- `cast=` argument, and `--no-cast` in the CLI.
+- `exclude=` with its warning and error rules and `attrs["excluded"]`;
+  `--exclude` in the CLI.
+- Number-to-text cast following the benchmark's decimals, with the note and
+  the warning (today `"1.0"` in `x` vs `1` in `y` is "no key in common").
+- The disjoint-key error names the key columns that share no value, with
+  examples, and suggests `exclude`.
+- `attrs`: `tolerance`, `name_map`, `dropped`, `excluded`, `ignored`.
+- Rename `is_equal()` to `is_matching()`, with re-judging at other
+  thresholds.
+- Tests pinning: date-time to text format, an all-missing column cast to
+  each target type, `-0.0` and `0.0` in a key being one key.
+- Port the matching R tests as oracles: `test-exclude.R`,
+  `test-roles-before-cast.R`, `test-cast-fixes.R` (text format),
+  `test-summary.R` (`is_matching`).
+
+**Exit criteria.**
+- Every behaviour listed above has a test, and the full profile is green on
+  the pull request, including the lowest-dependencies job.
+
+**Design.** [§4.1–4.4, §4.8](design.md#4-behaviour-of-diff_table),
+[§4a](design.md#4a-reading-a-result), [§7](design.md#7-cli).
+
+## Stage 4 — Explain
+
+**Issue.** [#16](https://github.com/pedrobtz/py-dazdiff/issues/16), sub-issue of
+[v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
+
+**CI.** `quick`.
+
+**Goal.** `diff_explain()` says which key values split a result into same
+and not same, as design §4a says.
+
+**Work.**
+- `diff_explain(d)` overview and `diff_explain(d, column)` breakdown, for
+  the `cells`, `groups` and `rows` shapes; `among="joined"`.
+- A key column named in either spelling, or `"metric"`; any other name is a
+  `DiffError`.
+- CLI `--explain [COLUMN]`.
+- Tests ported from R's `test-explain.R`, plus the ranking (fewest mixed,
+  then fewest values, identifying columns last).
+
+**Exit criteria.**
+- The quick profile is green on the pull request.
+
+**Design.** [§4a](design.md#4a-reading-a-result), [§7](design.md#7-cli).
+
+## Stage 5 — Text report
 
 **Issue.** [#5](https://github.com/pedrobtz/py-dazdiff/issues/5), sub-issue of
 [v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
@@ -150,10 +218,11 @@ Windows legs, and the CLI's ASCII fallback is built here`.
 text, bounded in length, in Unicode or ASCII.
 
 **Work.**
-- `diff_report()` returning a `DiffReport` with `__str__` and
-  `format(unicode=, width=, top_k=, sample_k=)`.
-- Sections per §5: header, columns, row alignment diagram, measures table
-  with top changes, keys only in `x` / only in `y`.
+- `diff_report(d, x_name=, y_name=, sample_k=)` returning a `DiffReport`
+  with `__str__` and `format(unicode=, width=)`, as in R.
+- Sections per §5: header, columns (compared, dropped, excluded, ignored,
+  truncated), row alignment diagram, measures table (no "Top changes"),
+  keys only in `x` / only in `y`.
 - CLI `--report` (with `--x-name`/`--y-name`), falling back to ASCII when
   stdout's encoding cannot represent the Unicode output.
 - Snapshot tests of the report for the README example, in both character
@@ -165,7 +234,7 @@ text, bounded in length, in Unicode or ASCII.
 
 **Design.** [§5](design.md#5-report), [§7](design.md#7-cli).
 
-## Stage 4 — Test helper
+## Stage 6 — Test helper
 
 **Issue.** [#6](https://github.com/pedrobtz/py-dazdiff/issues/6), sub-issue of
 [v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
@@ -188,7 +257,7 @@ reference with a readable failure.
 
 **Design.** [§6](design.md#6-test-helper).
 
-## Stage 5 — Full CI
+## Stage 7 — Full CI
 
 **Issue.** [#7](https://github.com/pedrobtz/py-dazdiff/issues/7), sub-issue of
 [v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
@@ -209,7 +278,7 @@ fixed.
 
 **Design.** [§8](design.md#8-dependencies-and-supported-versions).
 
-## Stage 6 — v0.1.0 readiness
+## Stage 8 — v0.1.0 readiness
 
 **Issue.** [#8](https://github.com/pedrobtz/py-dazdiff/issues/8), sub-issue of
 [v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
@@ -219,7 +288,6 @@ fixed.
 **Goal.** The package is ready to publish.
 
 **Work.**
-- Settle the distribution name ([§11](design.md#11-open-questions)).
 - `version = "0.1.0"` in `pyproject.toml` and `__version__` from package
   metadata (one source); `CHANGELOG.md` with a 0.1.0 section.
 - `.github/workflows/release.yml`: build, then publish with PyPI trusted
@@ -235,7 +303,7 @@ fixed.
 
 **Design.** [§9](design.md#9-packaging-and-release).
 
-## Stage 7 — Review
+## Stage 9 — Review
 
 **Issue.** [#9](https://github.com/pedrobtz/py-dazdiff/issues/9), sub-issue of
 [v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
@@ -260,16 +328,18 @@ No pull request closes this issue; it closes when both reviews are done.
 
 ## After 0.1.0
 
-From the daffiz roadmap, in its priority order:
+From the R package's roadmap, in its priority order:
 
 - Row accessors (`original_rows()`, `x_only()`, `y_only()`), taking the
-  inputs back: H in daffiz.
+  inputs back: H in the R package.
 - Report in `assert_table_equal()`'s failure text: H.
 - Tolerance per measure (a mapping for `tolerance` / `rel_tol`): M.
-- `exclude=` columns: M.
 - Lossless int/float widening in equal mode for the library (the CLI already
   widens CSV columns, [§7](design.md#7-cli)): M.
-- `diff_changes()`, change counts per measure as data: M.
+- `diff_changes()`, change counts per measure as data (the report's dropped
+  "Top changes", as its own section if it returns): M.
+- `diff_explain(d, x=)`: explain by columns that were not compared, joined
+  back from the inputs: from the R roadmap, unprioritized.
 - Non-numeric measures (text, bool, dates), opt-in: M.
 - Projected-size warning before large comparisons: M.
 - Parquet input for the CLI through an optional `pyarrow` extra: L.
@@ -277,4 +347,5 @@ From the daffiz roadmap, in its priority order:
 
 ## Blocking open questions
 
-- [§11](design.md#11-open-questions) (distribution name) blocks Stage 6.
+None. The distribution name was settled 2026-11-13
+([§11](design.md#11-open-questions)).

@@ -1,6 +1,7 @@
 # dazdiff (Python): design
 
-Status: draft 2026-11-06. The order of work is in [roadmap.md](roadmap.md).
+Status: draft 2026-11-06; brought in line with the R package's main
+(`2bb27b2`) on 2026-11-13. The order of work is in [roadmap.md](roadmap.md).
 
 ## 1 Purpose and scope
 
@@ -18,29 +19,32 @@ It answers one of two questions:
 Out of scope for the package as a whole: fuzzy row matching, schema
 migration, comparing more than two tables.
 
-## 2 Relationship to daffiz (R)
+## 2 Relationship to dazdiff (R)
 
 This is a Python port of the R package
-[`daffiz`](https://github.com/pedrobtz/dazdiff) (repository `dazdiff`). Its
+[`dazdiff`](https://github.com/pedrobtz/dazdiff), called `daffiz` until its
+rename (R #46, #59; noted 2026-11-13). Its
 `.agents/plan.md` is the behavioural reference for 0.1.0, and its
 `.agents/roadmap.md` (the features dropped in its core rebuild) is the
 reference for what comes after.
 
-- Behaviour matches daffiz unless this document records a reason not to.
-  Each such divergence is listed in §2.1.
+- Behaviour matches the R package unless this document records a reason
+  not to. Each such divergence is listed in §2.1.
 - The API is Pythonic: snake_case arguments, exceptions and warnings instead
   of R conditions, pandas instead of data.table.
-- Features daffiz decided against (e.g. `duplicate_keys = "pair"` by sorting
-  values, the plot) are not ported.
+- Features the R package decided against (e.g. `duplicate_keys = "pair"`
+  by sorting values, the plot) are not ported.
 
-### 2.1 Divergences from daffiz
+### 2.1 Divergences from the R package
 
-| daffiz | dazdiff | Reason |
+| R | Python | Reason |
 | --- | --- | --- |
 | `nan_is_na` argument | none; NaN and NA are always the same missing value | pandas float columns cannot tell NaN from NA, and CSV has neither |
 | messages for side effects | `DiffNote` warnings (§4.9) | Python has no message condition; warnings can be filtered and caught in tests |
 | `normalize_dt()`, `cast_rules()`, `compare_columns()` exported | internal | not needed for 0.1.0; revisit if users ask |
 | `date_format` argument | none | CSV dates arrive as text and stay identity columns; Date measures are deferred |
+| `"groups"` shape: `value_key_x/y` (`%a` hex text) and `n_na_x/y` | `values_x/y`, sorted tuples | a tuple of floats is exact and readable; no text encoding is needed to compare multisets in pandas |
+| condition classes (`dazdiff_error_*`, …) | three classes: `DiffError`, `DiffWarning`, `DiffNote` | the message names what happened; finer classes only if users ask |
 | result keyed by the identity | sorted by the identity, default `RangeIndex` | pandas has no keys; sorting gives the same reading order |
 | CLI | first-class, in 0.1.0 | the R roadmap marks it L; for Python it is the main entry point |
 
@@ -50,16 +54,19 @@ reference for what comes after.
 diff_table(x, y, *,
            mode="benchmark",              # or "equal"
            by=None,                       # key column(s); default: every non-measure column
+           exclude=None,                  # columns left out of the comparison
            row_key="none",                # or "position", "sorted"
            measures="numeric",            # or "numeric+integer", or column names
            tolerance=0.0,
            rel_tol=0.0,
            duplicates="disambiguate",     # or "aggregate", "error"
+           cast=None,                     # None: True in benchmark mode; equal mode never casts
            truncate=True) -> pd.DataFrame
 
 diff_summary(d) -> pd.DataFrame           # counts per measure, plus magnitudes
 diff_report(d, x_name="x", y_name="y") -> DiffReport   # str(report) is the text
-is_equal(d) -> bool
+is_matching(d, *, tolerance=None, rel_tol=None) -> bool
+diff_explain(d, column=None, *, among="all") -> pd.DataFrame   # or among="joined"
 assert_table_equal(actual, expected, *, rel_tol=1.5e-8, **kwargs) -> None
 normalize_names(names) -> list[str]
 
@@ -78,6 +85,20 @@ Arguments after `y` are keyword-only. Everything else is internal.
   from `y` is an error. `y` is cast to `x`'s types (§4.3).
 - **equal**: every column must be on both sides and have the same dtype,
   else an error listing them. Nothing is cast.
+- `cast=False` in benchmark mode keeps the column checks but requires the
+  compared columns to have `x`'s dtypes already; `cast=True` in equal mode
+  is an error. (Added 2026-11-13, as R's `cast` argument.)
+
+### 4.1a Excluded columns
+
+`exclude` names columns, in either spelling, that are removed from both
+tables before anything else, in either mode. An excluded column need not be
+in both tables, is not announced as dropped or ignored, and does not stop
+equal mode from calling the rest equal. A name in neither table is a
+`DiffWarning`, so one list of technical columns can serve many tables; a
+name that `by` or `measures` also names is a `DiffError`. The removed
+columns, as written, are in `attrs["excluded"]`. (Added 2026-11-13, R #65,
+#68; was an "After 0.1.0" item.)
 
 ### 4.2 Column names
 
@@ -93,6 +114,11 @@ than `A-Z` and `0-9` replaced by one `_`, `_` trimmed from both ends.
 
 ### 4.3 Casting (benchmark only)
 
+Roles (§4.4) are decided first, on `x`, and only the compared columns of
+`y` (keys and measures) are cast; a column the call ignores is neither cast
+nor type-checked. (Decided 2026-11-13, after R: casting first let an
+ignored column refuse the comparison or report a truncation.)
+
 `y`'s column is cast to `x`'s dtype. Supported target types: integer, float,
 bool, string, datetime.
 
@@ -102,11 +128,23 @@ bool, string, datetime.
 - A value that cannot be cast is an error naming the column and the value.
 - Both pandas 2 (object strings) and pandas 3 (`str` dtype) are supported.
 - To bool: numbers must be 0 or 1; text is `true`/`t`/`yes`/`1` or
-  `false`/`f`/`no`/`0`, case-insensitive. To string: integral floats lose
-  their `.0`, so a key read as `1.0` matches `"1"`. Categorical and other
-  dtypes are refused as targets. (Decided 2026-11-06, Stage 1.)
+  `false`/`f`/`no`/`0`, case-insensitive. To string: see the number-to-text
+  rule below. Categorical and other dtypes are refused as targets.
+  (Decided 2026-11-06, Stage 1.)
 - `attrs["truncated"]` is keyed by the normalized column name, as the result
   is; notes and errors use the name as written.
+- **Number to text** (decided 2026-11-13, after R #65): the benchmark's
+  decimals are read off every distinct value of `x`'s column. When all are
+  plain decimal text with one number of decimals, `y`'s numbers are written
+  with that many, so `2` meets `"2.0"`, announced by a `DiffNote`. A value is
+  reformatted only when the text reads back exactly, so `1.25` never becomes
+  `"1.3"`. Otherwise integral floats lose their `.0`, as before. A value of
+  `x` equal to one of `y`'s as a number but not as text is a `DiffWarning`
+  that names the format used, since those rows will not align.
+- A date-time cast to text is written `%Y-%m-%d %H:%M:%S`, midnight included,
+  with its fraction to the microsecond when it has one.
+- A column of `y` with no values at all (every value missing, whatever its
+  dtype) casts to any target type.
 
 ### 4.4 Measures and identity
 
@@ -119,8 +157,11 @@ bool, string, datetime.
   It may have no measures: then the question is "do they have the same
   rows?", and the result has one row per source row (§4.8).
 - If the two tables have keys but no key in common, it is an error: the
-  comparison would say nothing useful. An empty table is not disjoint: its
-  rows are all `only_x` or `only_y` (decided 2026-11-06).
+  comparison would say nothing useful. The error names the key columns whose
+  values the two tables do not share, with examples, and suggests `exclude`
+  for those holding one value in each table (2026-11-13, after R #65). An
+  empty table is not disjoint: its rows are all `only_x` or `only_y`
+  (decided 2026-11-06).
 
 ### 4.5 Values and tolerance
 
@@ -166,8 +207,12 @@ A DataFrame sorted by the identity, with `status` a categorical of `same`,
 | `groups` | `duplicates="aggregate"` | key × measure: `n_rows_x/y`, `values_x/y` |
 | `rows` | no measures | source row: `key_seq`, `row_id_x/y` |
 
-`attrs` also holds `by`, `measures`, `mode` and `truncated`. Row ids are
-1-based, as in daffiz. The caller's DataFrames are never modified.
+`attrs` also holds `by`, `measures`, `mode`, `truncated`, `tolerance`
+(`{"abs": …, "rel": …}`), `name_map` (each result column's name as written
+in `x` and in `y`), `dropped` (columns of `y` dropped in benchmark mode),
+`excluded` and `ignored` (columns in neither role), names as written. The
+extra keys were added 2026-11-13, as R's attributes. Row ids are
+1-based, as in the R package. The caller's DataFrames are never modified.
 
 ### 4.9 Errors, warnings, notes
 
@@ -176,13 +221,38 @@ A DataFrame sorted by the identity, with `status` a categorical of `same`,
 - `DiffNote` for expected side effects: truncation, dropped or ignored
   columns, no measures.
 
+## 4a Reading a result
+
+- `is_matching(d)` is `True` when every row is `same`; two empty tables
+  match. With `tolerance` or `rel_tol` it judges the values again at those
+  thresholds, looser or stricter, from the stored `abs_diff` and `rel_diff`,
+  by `diff_table()`'s rule (equal or both missing always match; tolerances
+  apply to finite pairs only; when one is given, the other is 0). `only_x`
+  and `only_y` never match. A tolerance above 0 on the `groups` shape is an
+  error (multisets compare exactly); the `rows` shape has no values, so its
+  answer does not change. (2026-11-13: replaces `is_equal()`,
+  for parity with R; nothing was released.)
+- `diff_explain(d)` returns one row per key column (and per `metric` when
+  there are measures): `column`, `n_values`, `same_only`, `differ_only`,
+  `mixed`, `separates`, `identifies`. A value is `same` when every record
+  holding it matches, `differ` when none does, `mixed` otherwise; a column
+  separates when no value is mixed. A column with a different value on
+  every row is marked `identifies` and ranked last; the others by fewest
+  mixed, then fewest values. For a key column the unit is the row (a row
+  matches when all its measures do), for `groups` the key, for `metric` the
+  value. `diff_explain(d, column)` returns one row per value of that
+  column: `n`, `n_same`, `n_changed`, `n_only_x`, `n_only_y`, `class`, most
+  differences first. `among="joined"` counts only rows found in both
+  tables. (Added 2026-11-13, after R #66.)
+
 ## 5 Report
 
 `diff_report(d, x_name, y_name)` lays out the comparison as text, after
-daffiz's `diff_report()`: identity and mode, columns compared/dropped/
+the R package's `diff_report()`: identity and mode, columns compared/dropped/
 truncated, a diagram of how the rows align, a table per measure (match rate,
-max |diff|, max rel diff, top changes with an example key), and the keys
-only in each table. Sections are bounded (`top_k`, `sample_k`).
+max |diff|, max rel diff), and the keys only in each table. No "Top changes"
+column (dropped 2026-11-13, as in R #65: it made the table too wide), and
+with it `top_k`. Sections are bounded by `sample_k`.
 
 - `str(report)` is Unicode; `report.format(unicode=False)` is ASCII, and the
   CLI falls back to it when stdout cannot encode Unicode (Windows consoles).
@@ -193,7 +263,7 @@ only in each table. Sections are bounded (`top_k`, `sample_k`).
 `assert_table_equal(actual, expected, **kwargs)` runs `diff_table(actual,
 expected-as-benchmark)` and raises `AssertionError` with `diff_summary()`
 and the first differing rows. Defaults: `rel_tol=1.5e-8`
-(`sqrt(float eps)`, as daffiz's `expect_table_equal()`), and
+(`sqrt(float eps)`, as the R package's `expect_table_equal()`), and
 `duplicates="error"` so a repeated key fails rather than being paired.
 It is plain Python, usable from pytest or unittest, with no pytest plugin.
 
@@ -208,6 +278,8 @@ prints the result, `--summary`, or `--report`.
 - CSV carries no types: a column read as integer in one file and float in
   the other is read as float in both, so the cast does not truncate it.
 - `--output FILE` writes the full result as CSV.
+- `--exclude` and `--no-cast` map to `exclude` and `cast=False`;
+  `--explain [COLUMN]` prints `diff_explain()` (added 2026-11-13).
 - `python -m dazdiff` is the same program.
 
 ## 8 Dependencies and supported versions
@@ -234,10 +306,8 @@ What comes later is listed in [roadmap.md](roadmap.md#after-010).
 
 ## 11 Open questions
 
-- **Distribution name.** The R package is `daffiz`; this repository and its
-  import name are `dazdiff`. Both are free on PyPI (checked 2026-11-06).
-  Proposed: keep `dazdiff` for the distribution, import and CLI, and reserve
-  `daffiz` only if the R and Python packages should share a name. Blocks the
-  v0.1.0 readiness stage.
+- ~~Distribution name.~~ Decided 2026-11-13: `dazdiff` for the
+  distribution, import and CLI. The R package was renamed `dazdiff` too
+  (R #46, #59), so both share the name.
 - ~~Argument name `duplicates="pair"`.~~ Decided 2026-11-06, Stage 2:
   renamed to `"disambiguate"` for parity with daffiz; nothing was released.
