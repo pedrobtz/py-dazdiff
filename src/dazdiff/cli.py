@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import warnings
 from collections.abc import Sequence
@@ -30,6 +31,10 @@ def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
         if cy is None:
             continue
         kinds = {x[cx].dtype.kind, y[cy].dtype.kind}
+        if kinds == {"i"} and x[cx].dtype != y[cy].dtype:  # int64 vs Int64: both nullable
+            x[cx] = x[cx].astype("Int64")
+            y[cy] = y[cy].astype("Int64")
+            continue
         if kinds == {"i", "f"} and _has_fraction(x[cx] if x[cx].dtype.kind == "f" else y[cy]):
             x[cx] = x[cx].astype(float)
             y[cy] = y[cy].astype(float)
@@ -45,6 +50,44 @@ def _printable(text: str, stream) -> bool:
     except (UnicodeEncodeError, LookupError):
         return False
     return True
+
+
+_LEADING_ZERO = re.compile(r"\s*[+-]?0[0-9]")
+
+
+def _read(path: str, sep: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The file as pandas types it, and as text."""
+    return pd.read_csv(path, sep=sep), pd.read_csv(path, sep=sep, dtype=str)
+
+
+def _keep_codes(x, x_text, y, y_text) -> None:
+    """A column written with a leading zero in either file (``007``) holds codes, not
+    numbers: read it as text in both, so ``007`` and ``7`` stay apart (#47)."""
+    y_by = {_canon(c): c for c in y.columns}
+    for cx in x.columns:
+        cy = y_by.get(_canon(cx))
+        cols = [(x, x_text, cx)] + ([(y, y_text, cy)] if cy is not None else [])
+        if not any(df[c].dtype.kind in "iuf" for df, _, c in cols):
+            continue
+        if any(_has_leading_zero(text[c]) for _, text, c in cols):
+            for df, text, c in cols:
+                df[c] = text[c]
+
+
+def _has_leading_zero(s: pd.Series) -> bool:
+    return bool(s.dropna().map(lambda v: bool(_LEADING_ZERO.match(v))).any())
+
+
+def _restore_ints(df: pd.DataFrame) -> None:
+    """pandas reads an integer column with an empty cell as float; read it as a
+    nullable integer instead, so its role and type follow its values (#46)."""
+    for c in df.columns:
+        s = df[c]
+        if s.dtype.kind != "f" or not s.isna().any() or s.notna().sum() == 0:
+            continue
+        v = s.dropna().to_numpy()
+        if np.isfinite(v).all() and (v == np.trunc(v)).all() and (np.abs(v) < 2.0**63).all():
+            df[c] = s.astype("Int64")
 
 
 def _has_fraction(s: pd.Series) -> bool:
@@ -154,8 +197,11 @@ def _run(args: argparse.Namespace) -> int:
         if not args.quiet:
             print(f"dazdiff: {message}", file=sys.stderr)
 
-    x = pd.read_csv(args.x, sep=args.sep)
-    y = pd.read_csv(args.y, sep=args.sep)
+    x, x_text = _read(args.x, args.sep)
+    y, y_text = _read(args.y, args.sep)
+    _keep_codes(x, x_text, y, y_text)
+    _restore_ints(x)
+    _restore_ints(y)
     measures = args.measures
     if measures not in ("numeric", "numeric+integer"):
         measures = _csv_list(measures)
