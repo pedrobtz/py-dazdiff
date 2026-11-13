@@ -65,7 +65,7 @@ diff_table(x, y, *,
            truncate=True) -> pd.DataFrame
 
 diff_summary(d) -> pd.DataFrame           # counts per measure, plus magnitudes
-diff_report(d, x_name="x", y_name="y") -> DiffReport   # str(report) is the text
+diff_report(d, x_name="x", y_name="y", *, sample_k=5) -> DiffReport   # str(report) is the text
 is_matching(d, *, tolerance=None, rel_tol=None) -> bool
 diff_explain(d, column=None, *, among="all") -> pd.DataFrame   # or among="joined"
 assert_table_equal(actual, expected, *, rel_tol=1.5e-8, **kwargs) -> None
@@ -208,7 +208,9 @@ A DataFrame sorted by the identity, with `status` a categorical of `same`,
 | `groups` | `duplicates="aggregate"` | key × measure: `n_rows_x/y`, `values_x/y` |
 | `rows` | no measures | source row: `key_seq`, `row_id_x/y` |
 
-`attrs` also holds `by`, `measures`, `mode`, `truncated`, `tolerance`
+`attrs` also holds `by`, `measures`, `mode`, `truncated`, `paired` (whether
+repeated keys were paired, since `cells` drops `key_seq`; added 2026-11-13,
+Stage 5, for the report), `tolerance`
 (`{"abs": …, "rel": …}`), `name_map` (each result column's name as written
 in `x` and in `y`), `dropped` (columns of `y` dropped in benchmark mode),
 `excluded` and `ignored` (columns in neither role), names as written. The
@@ -258,7 +260,14 @@ with it `top_k`. Sections are bounded by `sample_k`.
 
 - `str(report)` is Unicode; `report.format(unicode=False)` is ASCII, and the
   CLI falls back to it when stdout cannot encode Unicode (Windows consoles).
-- No colour, no terminal width detection beyond a `width` argument.
+- No colour and no width argument: the report is as wide as its widest line,
+  at least 40 columns, as in R (decided 2026-11-13, Stage 5; the earlier
+  `width` argument had no R counterpart).
+- The text is the R package's, byte for byte, for the same comparison: its
+  report snapshots are this package's test fixtures. Numbers are written as
+  R's `format(digits=)` writes them.
+- `DiffReport` holds the computed report as data (`rows`, `by_measure`,
+  `only_x`, `only_y`, …) apart from its drawing.
 
 ## 6 Test helper
 
@@ -280,6 +289,9 @@ prints the result, `--summary`, or `--report`.
 - CSV carries no types: a column read as integer in one file and float in
   the other is read as float in both, so the cast does not truncate it.
 - `--output FILE` writes the full result as CSV.
+- `--report` prints `diff_report()`, naming the tables by their file names
+  unless `--x-name`/`--y-name` say otherwise; `--ascii` forces ASCII
+  (2026-11-13, Stage 5).
 - `--exclude` and `--no-cast` map to `exclude` and `cast=False`;
   `--explain [COLUMN]` prints `diff_explain()`, with `--joined` for
   `among="joined"` (added 2026-11-13).

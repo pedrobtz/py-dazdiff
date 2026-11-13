@@ -45,3 +45,8 @@
 - `diff_explain()` (`--explain [COLUMN]`, `--joined`) says which key values
   split the result into same and not same: per key column and per measure,
   or per value of one column.
+- `diff_report()` (`--report`) draws a bounded text report: the columns
+  compared, a picture of how the rows align, and per changed measure its
+  match rate and largest differences, in Unicode or ASCII (`--ascii`, and
+  automatically when the terminal cannot show Unicode).
+- `attrs["paired"]` says whether repeated keys were paired.

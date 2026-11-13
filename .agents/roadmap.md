@@ -219,7 +219,7 @@ text, bounded in length, in Unicode or ASCII.
 
 **Work.**
 - `diff_report(d, x_name=, y_name=, sample_k=)` returning a `DiffReport`
-  with `__str__` and `format(unicode=, width=)`, as in R.
+  with `__str__` and `format(unicode=)`, as in R.
 - Sections per §5: header, columns (compared, dropped, excluded, ignored,
   truncated), row alignment diagram, measures table (no "Top changes"),
   keys only in `x` / only in `y`.
