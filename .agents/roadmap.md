@@ -32,7 +32,10 @@ share one class.
 | `full` | pytest on Ubuntu, macOS and Windows × Python 3.10–3.14; a lowest-direct-dependencies job (`uv run --resolution lowest-direct`, pandas 2.2.2); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
 
 Pull requests run `quick`; pushes to `main` and pull requests labelled
-`full-ci` run `full`. A stage earns `full` only when the full set checks
+`full-ci` run `full`. A pull request's superseded runs are cancelled; a push to `main`
+never is, so every merge commit gets a complete run (decided 2026-11-13,
+Stage 7, after quick merges cancelled queued macOS jobs). Coverage must stay
+at or above 97%. A stage earns `full` only when the full set checks
 something the stage introduces and later stages build on.
 
 ## Stages
