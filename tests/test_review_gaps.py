@@ -3,6 +3,7 @@ the source that the rest of the suite let through."""
 
 import math
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -131,7 +132,8 @@ def test_cli_output_holds_the_comparison(csvs_example, tmp_path):
 
 @pytest.fixture
 def csvs_example():
-    return "examples/benchmark.csv", "examples/stored.csv"
+    root = Path(__file__).parent.parent / "examples"
+    return str(root / "benchmark.csv"), str(root / "stored.csv")
 
 
 # 5. a key column that is not there
