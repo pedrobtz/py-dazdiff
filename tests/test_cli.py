@@ -143,3 +143,43 @@ def test_version_comes_from_the_package_metadata():
     import dazdiff
 
     assert dazdiff.__version__ == version("dazdiff")
+
+
+# --- Stage 9 review fixes ----------------------------------------------------------
+
+
+def test_cli_widening_keeps_an_integer_key_a_key(tmp_path, capsys):
+    # One empty id makes the second file read `id` as float; it must stay the key.
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("id,v\n1,1.5\n2,2.5\n")
+    y.write_text("id,v\n1,1.5\n,2.5\n")
+    assert main([str(x), str(y), "--only-diffs"]) == 1
+    captured = capsys.readouterr()
+    assert "Every column is a measure" not in captured.err
+    assert "only_x" in captured.out and "only_y" in captured.out
+
+
+def test_cli_widening_with_excluded_and_integer_measures(tmp_path):
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("id,n,v,stamp\n1,10,1.5,a\n2,20,2.5,b\n")
+    y.write_text("id,n,v,stamp\n1,10.0,1.5,c\n2,20.5,2.5,d\n")
+    # n is an integer measure read as float in y: widened, so 20.5 is not truncated.
+    assert main([str(x), str(y), "-m", "numeric+integer", "--exclude", "stamp,v", "-q"]) == 2
+    assert (
+        main([str(x), str(y), "-m", "numeric+integer", "--by", "id", "--exclude", "stamp", "-q"])
+        == 1
+    )
+
+
+def test_cli_an_output_error_exits_two(csvs, tmp_path, capsys):
+    out = tmp_path / "missing" / "out.csv"
+    assert main([*csvs, "-b", "id,region", "-o", str(out)]) == 2
+    err = capsys.readouterr().err
+    assert "dazdiff: error:" in err and "Traceback" not in err
+
+
+def test_cli_an_undecodable_file_exits_two(tmp_path, capsys):
+    x = tmp_path / "x.csv"
+    x.write_bytes(b"id,v\n1,\xff\xfe\n")
+    assert main([str(x), str(x)]) == 2
+    assert capsys.readouterr().err.startswith("dazdiff: error:")
