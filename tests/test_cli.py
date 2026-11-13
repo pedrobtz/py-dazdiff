@@ -125,3 +125,13 @@ def test_cli_report_falls_back_to_ascii(csvs, monkeypatch):
     text = raw.getvalue().decode("cp1252")
     assert "dazdiff report" in text
     assert text.isascii()
+
+
+def test_python_dash_m_runs_the_cli(monkeypatch, capsys):
+    import runpy
+
+    monkeypatch.setattr(sys, "argv", ["dazdiff", "--version"])
+    with pytest.raises(SystemExit) as e:
+        runpy.run_module("dazdiff", run_name="__main__")
+    assert e.value.code == 0
+    assert capsys.readouterr().out.startswith("dazdiff ")

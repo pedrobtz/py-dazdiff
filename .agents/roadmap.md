@@ -32,7 +32,10 @@ share one class.
 | `full` | pytest on Ubuntu, macOS and Windows × Python 3.10–3.14; a lowest-direct-dependencies job (`uv run --resolution lowest-direct`, pandas 2.2.2); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
 
 Pull requests run `quick`; pushes to `main` and pull requests labelled
-`full-ci` run `full`. A stage earns `full` only when the full set checks
+`full-ci` run `full`. A pull request's superseded runs are cancelled; a push to `main`
+never is, so every merge commit gets a complete run (decided 2026-11-13,
+Stage 7, after quick merges cancelled queued macOS jobs). Coverage must stay
+at or above 97%. A stage earns `full` only when the full set checks
 something the stage introduces and later stages build on.
 
 ## Stages
@@ -46,7 +49,7 @@ something the stage introduces and later stages build on.
 | 4 | [Explain](#stage-4--explain) | quick | [#16](https://github.com/pedrobtz/py-dazdiff/issues/16) | [#19](https://github.com/pedrobtz/py-dazdiff/pull/19) | 2026-11-13 |
 | 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | [#20](https://github.com/pedrobtz/py-dazdiff/pull/20) | 2026-11-13 |
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | [#21](https://github.com/pedrobtz/py-dazdiff/pull/21) | 2026-11-13 |
-| 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | | |
+| 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | [#22](https://github.com/pedrobtz/py-dazdiff/pull/22) | 2026-11-13 |
 | 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | | |
 | 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | | |
 

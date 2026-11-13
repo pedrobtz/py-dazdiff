@@ -13,9 +13,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# A pull request's superseded runs are cancelled; a push to main never is, so every
+# merge commit gets a complete full-profile run (two quick merges used to cancel
+# the first one's queued macOS jobs).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -88,7 +91,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: uv run --frozen pytest --cov=dazdiff --cov-report=term-missing
+      # The floor is the level Stage 7 reached (98%), less a point of slack.
+      - run: uv run --frozen pytest --cov=dazdiff --cov-report=term-missing --cov-fail-under=97
 
   package:
     if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
