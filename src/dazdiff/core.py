@@ -555,6 +555,9 @@ def _diff_table(
         _check_names([o for o, _ in used], [c for _, c in used], "`y`")
     x_names = dict(zip(x_canon, x.columns, strict=True))
     y_names = {c: o for o, c in zip(y.columns, y_canon, strict=True) if c}
+    # Every column of y that x lacks, as written: also those whose names normalize
+    # to nothing or clash, which y_names cannot hold.
+    y_extra = [o for o, c in zip(y.columns, y_canon, strict=True) if c not in set(x_canon)]
     name_map = {c: {"x": o, "y": y_names.get(c)} for c, o in x_names.items()}
     name_map.update({c: {"x": None, "y": o} for c, o in y_names.items() if c not in x_names})
 
@@ -581,8 +584,8 @@ def _diff_table(
         if only_x:
             missing = _join(x_names[c] for c in only_x)
             raise DiffError(f"`y` lacks column(s) of the benchmark `x`: {missing}.")
-        dropped = [y_names.get(c, c) for c in only_y]
-        if only_y:
+        dropped = y_extra
+        if dropped:
             alerts.append(
                 (
                     DiffNote,
@@ -851,6 +854,24 @@ def diff_summary(d: pd.DataFrame) -> pd.DataFrame:
     return counts.reset_index()
 
 
+def _result_ids(d: pd.DataFrame) -> list[str]:
+    """The key columns of a diff_table() result. User columns are normalized to
+    upper case; internal ones hold a lowercase letter, and ``row_number`` is the one
+    internal key. Read off the names, so a filtered or re-sorted result still works."""
+    return [c for c in d.columns if not re.search("[a-z]", str(c)) or c == "row_number"]
+
+
+def _result_shape(d: pd.DataFrame) -> str:
+    """The shape of a diff_table() result, from ``attrs`` or, when a pandas operation
+    dropped them, from its columns."""
+    shape = d.attrs.get("shape")
+    if shape:
+        return shape
+    if "n_rows_x" in d:
+        return "groups"
+    return "cells" if "abs_diff" in d else "rows"
+
+
 def is_matching(
     d: pd.DataFrame, *, tolerance: float | None = None, rel_tol: float | None = None
 ) -> bool:
@@ -878,7 +899,7 @@ def is_matching(
     tolerance = 0.0 if tolerance is None else float(tolerance)
     rel_tol = 0.0 if rel_tol is None else float(rel_tol)
 
-    shape = d.attrs.get("shape", "cells" if "abs_diff" in d else None)
+    shape = _result_shape(d)
     # The multisets of "aggregate" are compared exactly and hold no difference to
     # re-judge, as diff_table() refuses a tolerance with them.
     if shape == "groups" and (tolerance > 0 or rel_tol > 0):
@@ -932,10 +953,7 @@ def diff_explain(d: pd.DataFrame, column: str | None = None, *, among: str = "al
         raise DiffError("`d` must be a result of diff_table().")
     if among not in _AMONG:
         raise DiffError(f"`among` must be one of {_AMONG}, not {among!r}.")
-    # User columns are normalized to upper case; internal ones hold a lowercase
-    # letter, and row_number is the one internal key. Read off the names, so a
-    # filtered or re-sorted result still explains.
-    ids = [c for c in d.columns if not re.search("[a-z]", str(c)) or c == "row_number"]
+    ids = _result_ids(d)
     has_metric = "metric" in d
     candidates = ids + (["metric"] if has_metric else [])
 
@@ -951,8 +969,7 @@ def diff_explain(d: pd.DataFrame, column: str | None = None, *, among: str = "al
                 + f"; got {given}; the key columns are {_join(ids)}."
             )
 
-    shape = d.attrs.get("shape") or ("groups" if "n_rows_x" in d else "cells")
-    units = _explain_units(d, ids, shape)
+    units = _explain_units(d, ids, _result_shape(d))
     cells = (
         pd.DataFrame({"metric": d["metric"].astype(str), "status": d["status"].astype(str)})
         if has_metric
@@ -1102,18 +1119,14 @@ def assert_table_equal(
                 f"`actual` does not match `expected` (as `y` and `x`): {e}"
             ) from None
         raise
-    for w in caught:
-        # diff_table() warns exactly when it pairs repeated keys of rows with
-        # measures, so that warning is the error unless the caller accepted it.
-        if (
-            duplicates is None
-            and issubclass(w.category, DiffWarning)
-            and "repeated key" in str(w.message)
-        ):
-            raise DiffError(
-                f"{w.message}\nassert_table_equal() does not pair duplicate keys; pass "
-                'duplicates="disambiguate" or "aggregate" to accept them.'
-            )
+    # Pairing repeated keys of rows with measures decides identity by arrival order,
+    # which an assertion must not do unless the caller accepted it.
+    if duplicates is None and d.attrs.get("paired") and d.attrs.get("measures"):
+        raise DiffError(
+            "`actual` or `expected` has repeated keys, which diff_table() pairs in "
+            "arrival order.\nassert_table_equal() does not pair duplicate keys; pass "
+            'duplicates="disambiguate" or "aggregate" to accept them.'
+        )
     for w in caught:
         warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
 

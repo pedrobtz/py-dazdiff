@@ -9,14 +9,13 @@ the two tables align. The report is computed first, as plain data, and drawn by
 from __future__ import annotations
 
 import math
-import re
 import unicodedata
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-from .core import DiffError, _explain_units, diff_summary
+from .core import DiffError, _explain_units, _result_ids, _result_shape, diff_summary
 
 _TITLE = "dazdiff report"
 
@@ -44,6 +43,10 @@ class DiffReport:
     by_measure: pd.DataFrame | None
     only_x: pd.DataFrame = field(repr=False)
     only_y: pd.DataFrame = field(repr=False)
+    # Distinct keys found in one table only: "(...and N more)" counts these, not
+    # rows, since a key can repeat.
+    n_keys_only_x: int = 0
+    n_keys_only_y: int = 0
 
     def format(self, unicode: bool = True) -> str:
         """The report as text: box-drawing characters, or ASCII with
@@ -75,16 +78,13 @@ def diff_report(
         raise DiffError("`sample_k` must be a single whole number >= 0.")
 
     attrs = d.attrs
-    shape = attrs.get("shape") or ("groups" if "n_rows_x" in d else "cells")
+    shape = _result_shape(d)
     name_map = attrs.get("name_map", {})
 
     def label(c):
         return (name_map.get(c) or {}).get("x") or c
 
-    # User columns are normalized to upper case; internal ones hold a lowercase
-    # letter, and row_number is the one internal key. Read off the names, so a
-    # filtered or re-sorted result still reports.
-    ids = [c for c in d.columns if not re.search("[a-z]", str(c)) or c == "row_number"]
+    ids = _result_ids(d)
     measures: list[str] = []
     if "metric" in d:
         present = list(dict.fromkeys(d["metric"].astype(str)))
@@ -122,9 +122,12 @@ def diff_report(
             by_measure["max_abs_diff"] = s["max_abs_diff"].to_numpy()
             by_measure["max_rel_diff"] = s["max_rel_diff"].to_numpy()
 
-    def sample(side):
+    def keys(side):
         keep = units["status"] == f"only_{side}"
-        out = units.loc[keep, ids].drop_duplicates().head(sample_k).reset_index(drop=True)
+        return units.loc[keep, ids].drop_duplicates()
+
+    def sample(side):
+        out = keys(side).head(sample_k).reset_index(drop=True)
         return out.rename(columns={c: label(c) for c in ids})
 
     return DiffReport(
@@ -146,6 +149,8 @@ def diff_report(
         by_measure=by_measure,
         only_x=sample("x"),
         only_y=sample("y"),
+        n_keys_only_x=len(keys("x")),
+        n_keys_only_y=len(keys("y")),
     )
 
 
@@ -344,7 +349,7 @@ def _measure_lines(x: DiffReport, g: dict) -> list[str]:
 
 def _sample_lines(x: DiffReport, side: str, g: dict) -> list[str]:
     keys = x.only_x if side == "x" else x.only_y
-    n = x.rows[f"n_only_{side}"]
+    n = x.n_keys_only_x if side == "x" else x.n_keys_only_y
     if not len(keys) or not n:
         return []
     max_cols = 5
