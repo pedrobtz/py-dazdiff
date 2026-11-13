@@ -894,3 +894,157 @@ def is_matching(
         close = (abs_diff <= tolerance) | (rel_diff <= rel_tol)
     same = joined & np.where(finite, close, status == "same")
     return bool(same.all())
+
+
+# --- diff_explain -----------------------------------------------------------------
+
+_AMONG = ("all", "joined")
+_OVERVIEW = ["column", "n_values", "same_only", "differ_only", "mixed", "separates", "identifies"]
+
+
+def diff_explain(d: pd.DataFrame, column: str | None = None, *, among: str = "all") -> pd.DataFrame:
+    """Which values of the key columns separate the rows that match from those that
+    do not.
+
+    With no ``column``, one row per key column (and per ``metric`` when the result
+    has measures): ``column``, ``n_values``, and how many of its values are
+    ``same_only`` (every record holding it matches), ``differ_only`` (none does) or
+    ``mixed``. A column ``separates`` when no value is mixed; one with a different
+    value on every record ``identifies`` and is ranked last. The others come first,
+    fewest mixed values first, then fewest values.
+
+    With a ``column`` (a key column in either spelling, or ``"metric"``), one row per
+    value of it: ``n``, ``n_same``, ``n_changed``, ``n_only_x``, ``n_only_y`` and
+    ``class``, most differences first.
+
+    For a key column the unit is the row, which matches only when every one of its
+    measures does; with ``duplicates="aggregate"`` it is the key; for ``metric`` it
+    is the value. ``among="joined"`` counts only rows found in both tables, so the
+    explanation is of the changed values alone.
+    """
+    if not isinstance(d, pd.DataFrame) or "status" not in d:
+        raise DiffError("`d` must be a result of diff_table().")
+    if among not in _AMONG:
+        raise DiffError(f"`among` must be one of {_AMONG}, not {among!r}.")
+    # User columns are normalized to upper case; internal ones hold a lowercase
+    # letter, and row_number is the one internal key. Read off the names, so a
+    # filtered or re-sorted result still explains.
+    ids = [c for c in d.columns if not re.search("[a-z]", str(c)) or c == "row_number"]
+    has_metric = "metric" in d
+    candidates = ids + (["metric"] if has_metric else [])
+
+    if column is not None:
+        if not isinstance(column, str):
+            raise DiffError("`column` must be None or a single column name.")
+        given = column
+        column = column if column in candidates else _canon(column)
+        if column not in candidates:
+            raise DiffError(
+                "`column` must be a key column of the result"
+                + (' or "metric"' if has_metric else "")
+                + f"; got {given}; the key columns are {_join(ids)}."
+            )
+
+    shape = d.attrs.get("shape") or ("groups" if "n_rows_x" in d else "cells")
+    units = _explain_units(d, ids, shape)
+    cells = (
+        pd.DataFrame({"metric": d["metric"].astype(str), "status": d["status"].astype(str)})
+        if has_metric
+        else None
+    )
+    if among == "joined":
+        units = units[units["status"].isin(["same", "changed"])]
+        if cells is not None:
+            cells = cells[cells["status"].isin(["same", "changed"])]
+
+    def records(col):
+        return cells if col == "metric" else units
+
+    if column is not None:
+        return _explain_values(records(column), column)
+
+    rows = []
+    for col in candidates:
+        r = records(col)
+        v = _explain_values(r, col)
+        rows.append(
+            {
+                "column": col,
+                "n_values": len(v),
+                "same_only": int((v["class"] == "same").sum()),
+                "differ_only": int((v["class"] == "differ").sum()),
+                "mixed": int((v["class"] == "mixed").sum()),
+                "separates": not (v["class"] == "mixed").any(),
+                # metric is never an identifier: it repeats on every row.
+                "identifies": col != "metric" and len(v) > 1 and len(v) == len(r),
+            }
+        )
+    out = pd.DataFrame(rows, columns=_OVERVIEW)
+    out = out.astype(
+        {
+            "n_values": "int64",
+            "same_only": "int64",
+            "differ_only": "int64",
+            "mixed": "int64",
+            "separates": bool,
+            "identifies": bool,
+        }
+    )
+    return out.sort_values(["identifies", "mixed", "n_values"], kind="stable", ignore_index=True)
+
+
+def _explain_units(d: pd.DataFrame, ids: list[str], shape: str) -> pd.DataFrame:
+    """One record per row (per key with ``"groups"``), with the status of the row as
+    a whole: ``only_x`` or ``only_y`` by membership, which comes from ``row_id`` or
+    ``n_rows`` and never from the value; otherwise ``changed`` when any of its
+    measures changed."""
+    present = "n_rows" if shape == "groups" else "row_id"
+    # A row is its pair of source rows, which tells paired duplicates apart.
+    unit = ids if shape == "groups" else ["row_id_x", "row_id_y"]
+    w = d[list(dict.fromkeys(ids + unit))].copy()
+    w["_in_x"] = d[f"{present}_x"].notna().to_numpy()
+    w["_in_y"] = d[f"{present}_y"].notna().to_numpy()
+    w["_changed"] = (d["status"].astype(str) == "changed").to_numpy()
+    if len(w):
+        agg = {c: "first" for c in ids if c not in unit}
+        agg.update({"_in_x": "max", "_in_y": "max", "_changed": "max"})
+        w = w.groupby(unit, dropna=False, sort=False).agg(agg).reset_index()
+    status = np.select(
+        [~w["_in_y"].astype(bool), ~w["_in_x"].astype(bool), w["_changed"].astype(bool)],
+        ["only_x", "only_y", "changed"],
+        "same",
+    )
+    out = w[ids].reset_index(drop=True)
+    out["status"] = status
+    return out
+
+
+def _explain_values(r: pd.DataFrame, col: str) -> pd.DataFrame:
+    """The counts of each status per value of ``col``, with the value's class: most
+    differences first, then the values that only differ before the mixed ones, since
+    they are the cleaner lead."""
+    s = r["status"].to_numpy()
+    v = pd.DataFrame(
+        {
+            col: r[col].to_numpy(),
+            "n": 1,
+            "n_same": s == "same",
+            "n_changed": s == "changed",
+            "n_only_x": s == "only_x",
+            "n_only_y": s == "only_y",
+        }
+    )
+    out = (
+        v.groupby(col, dropna=False, sort=False)
+        .sum()
+        .reset_index()
+        .astype({k: "int64" for k in ["n", "n_same", "n_changed", "n_only_x", "n_only_y"]})
+    )
+    out["class"] = np.select(
+        [out["n_same"] == out["n"], out["n_same"] == 0], ["same", "differ"], "mixed"
+    )
+    out["_d"] = out["n"] - out["n_same"]
+    out["_r"] = out["class"].map({"differ": 0, "mixed": 1, "same": 2})
+    out = out.sort_values(["_r", col], kind="stable", na_position="last")
+    out = out.sort_values("_d", ascending=False, kind="stable", ignore_index=True)
+    return out.drop(columns=["_d", "_r"])
