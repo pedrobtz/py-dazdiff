@@ -42,3 +42,6 @@
   `ignored`.
 - `is_equal()` is now `is_matching()`, which can judge a result again at
   other `tolerance` and `rel_tol` thresholds.
+- `diff_explain()` (`--explain [COLUMN]`, `--joined`) says which key values
+  split the result into same and not same: per key column and per measure,
+  or per value of one column.

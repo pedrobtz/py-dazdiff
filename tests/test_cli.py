@@ -85,3 +85,17 @@ def test_cli_no_cast(tmp_path, capsys):
     y.write_text("id,v\na,1.5\n")
     assert main([str(x), str(y), "--no-cast"]) == 2
     assert "cast=False" in capsys.readouterr().err
+
+
+def test_cli_explain(csvs, capsys):
+    assert main([*csvs, "-b", "id,region", "--explain"]) == 1
+    out = capsys.readouterr().out
+    assert out.splitlines()[0].split()[:3] == ["column", "n_values", "same_only"]
+    assert main([*csvs, "-b", "id,region", "--explain", "region", "--joined"]) == 1
+    out = capsys.readouterr().out
+    assert "REGION" in out and "west" not in out
+
+
+def test_cli_explain_refuses_a_measure(csvs, capsys):
+    assert main([*csvs, "-b", "id,region", "--explain", "amount"]) == 2
+    assert "key column of the result" in capsys.readouterr().err
