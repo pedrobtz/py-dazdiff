@@ -1,6 +1,6 @@
 [project]
 name = "dazdiff"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Compare two tables value by value, from Python or the command line."
 readme = "README.md"
 authors = [
