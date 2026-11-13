@@ -68,14 +68,19 @@ other is compared as float.
 
 ```python
 import pandas as pd
-from dazdiff import diff_table, diff_summary, is_matching
+from dazdiff import diff_report, diff_summary, diff_table, is_matching
+
+benchmark = pd.read_csv("examples/benchmark.csv")
+stored = pd.read_csv("examples/stored.csv")
 
 d = diff_table(benchmark, stored, by=["id", "region"], measures="numeric+integer")
 d[d["status"] != "same"]
 diff_summary(d)
-is_matching(d)  # False
-is_matching(d, tolerance=1)  # judged again at a looser threshold
+assert not is_matching(d)  # rows 4 and 5 are each in one table only
 ```
+
+`is_matching(d, tolerance=1)` judges the values again at another threshold,
+without running the comparison again.
 
 `diff_explain(d)` says which key columns separate the rows that match from
 those that do not, and `diff_explain(d, "region")` counts each status per
@@ -88,6 +93,31 @@ written with the decimals the benchmark uses, so `2` meets `"2.0"`.
 With no measure columns, rows are compared as wholes, and a repeated row counts
 once per copy. Values truncated when casting to the benchmark's integer
 columns are recorded in `d.attrs["truncated"]`.
+
+### Report
+
+```python
+print(diff_report(d, "benchmark", "stored"))
+```
+
+draws the columns compared, how the rows of the two tables align, and per
+changed measure its match rate and largest differences.
+`diff_report(d).format(unicode=False)` draws it in ASCII.
+
+### In tests
+
+```python
+from dazdiff import assert_table_equal
+
+expected = pd.DataFrame({"id": [1, 2], "amount": [100.0, 200.0]})
+actual = pd.DataFrame({"id": [1, 2], "amount": [100.0, 200.0 + 1e-12]})
+assert_table_equal(actual, expected)  # within a relative 1.5e-8
+```
+
+`assert_table_equal()` tests `actual` against `expected` as the benchmark and
+raises `AssertionError` with `diff_summary()` and the first records that
+differ, so it works under pytest, unittest or a plain script. A repeated key
+is an error unless `duplicates=` says how to treat it.
 
 ## Development
 
