@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dazdiff import DiffError, DiffNote, DiffWarning, diff_summary, diff_table, is_equal
+from dazdiff import DiffError, DiffNote, DiffWarning, diff_summary, diff_table, is_matching
 
 
 def kv(k, v):
@@ -52,7 +52,9 @@ def test_error_refuses_repeated_rows_too():
 
 
 def test_error_accepts_unique_keys():
-    assert is_equal(diff_table(kv([1, 2], [1.0, 2.0]), kv([2, 1], [2.0, 1.0]), duplicates="error"))
+    assert is_matching(
+        diff_table(kv([1, 2], [1.0, 2.0]), kv([2, 1], [2.0, 1.0]), duplicates="error")
+    )
 
 
 # --- duplicates="aggregate" --------------------------------------------------
@@ -68,7 +70,7 @@ def test_aggregate_compares_multisets():
     assert list(d.columns) == [
         "K", "metric", "n_rows_x", "n_rows_y", "values_x", "values_y", "status",
     ]  # fmt: skip
-    assert is_equal(d)
+    assert is_matching(d)
     assert d["values_x"].tolist() == [(1.0, 2.0), (3.0,)]
     assert d["n_rows_x"].tolist() == [2, 1]
 
@@ -90,7 +92,7 @@ def test_aggregate_statuses(y_k, y_v, expected):
 def test_aggregate_missing_values_and_signed_zero():
     x = kv([1, 1, 2], [np.nan, 1.0, 0.0])
     y = kv([1, 1, 2], [1.0, np.nan, -0.0])
-    assert is_equal(diff_table(x, y, duplicates="aggregate"))
+    assert is_matching(diff_table(x, y, duplicates="aggregate"))
     y = kv([1, 1, 2], [1.0, 1.0, 0.0])
     assert by_key(diff_table(x, y, duplicates="aggregate")) == {1: "changed", 2: "same"}
 
@@ -121,7 +123,7 @@ def test_aggregate_without_measures_compares_rows():
     with pytest.warns(DiffNote, match="as wholes"):
         d = diff_table(x, x, duplicates="aggregate")
     assert d.attrs["shape"] == "rows"
-    assert is_equal(d)
+    assert is_matching(d)
 
 
 def test_summary_of_groups_shape():
@@ -163,9 +165,9 @@ def test_row_key_position_extra_rows():
 def test_row_key_sorted_ignores_row_order():
     x = measures_only()
     y = x.iloc[[2, 0, 1]]
-    assert not is_equal(diff_table(x, y, row_key="position"))
+    assert not is_matching(diff_table(x, y, row_key="position"))
     d = diff_table(x, y, row_key="sorted")
-    assert is_equal(d)
+    assert is_matching(d)
     rows = d[d["metric"] == "A"]
     assert rows["row_id_y"].tolist() == [2, 3, 1]  # traced back to y's source rows
 
@@ -173,7 +175,7 @@ def test_row_key_sorted_ignores_row_order():
 def test_row_key_sorted_sorts_on_all_compared_columns():
     x = pd.DataFrame({"a": [1.0, 1.0], "b": [9.0, 8.0]})
     y = pd.DataFrame({"a": [1.0, 1.0], "b": [8.0, 9.0]})
-    assert is_equal(diff_table(x, y, row_key="sorted"))
+    assert is_matching(diff_table(x, y, row_key="sorted"))
 
 
 def test_row_key_keeps_other_key_columns():

@@ -10,7 +10,7 @@ from dazdiff import (
     DiffWarning,
     diff_summary,
     diff_table,
-    is_equal,
+    is_matching,
     normalize_names,
 )
 
@@ -59,7 +59,7 @@ def test_clashing_names_are_an_error_in_the_users_spelling():
 def test_benchmark_ignores_clashes_in_unused_y_columns():
     x = pd.DataFrame({"k": [1], "v": [1.0]})
     y = pd.DataFrame({"k": [1], "v": [1.0], "extra 1": [0], "extra_1": [0]})
-    assert is_equal(quiet(x, y))
+    assert is_matching(quiet(x, y))
 
 
 def test_benchmark_refuses_clashes_in_used_y_columns():
@@ -78,7 +78,7 @@ def test_user_column_named_like_an_internal_one():
     x = pd.DataFrame({"key_seq": [1, 2], "v": [1.0, 2.0]})
     d = diff_table(x, x)
     assert "KEY_SEQ" in d.columns
-    assert is_equal(d)
+    assert is_matching(d)
 
 
 # --- modes, measures, identity -----------------------------------------------
@@ -147,7 +147,7 @@ def test_equal_mode_requires_same_types(benchmark):
 
 def test_equal_mode_ignores_row_order(benchmark):
     d = diff_table(benchmark, benchmark.iloc[[3, 0, 1, 2]], mode="equal")
-    assert is_equal(d)
+    assert is_matching(d)
     assert d["row_id_y"].tolist() == [2, 3, 4, 1]
 
 
@@ -217,7 +217,7 @@ def test_benchmark_casts_drops_and_truncates(benchmark, stored):
 
 def test_no_truncate_refuses_cast(benchmark, stored):
     with pytest.raises(DiffError, match="truncate"):
-        quiet(benchmark, stored, by=["id", "region"], truncate=False)
+        quiet(benchmark, stored, by=["id", "region"], measures="numeric+integer", truncate=False)
 
 
 def test_missing_column_in_y_is_an_error(benchmark):
@@ -260,7 +260,7 @@ def test_benchmark_casts_keys_to_the_benchmark_type(x_values, y_values):
     # The cast column is a key, so a wrong cast shows up as unmatched rows.
     x = pd.DataFrame({"key": x_values, "m": [1.0, 2.0, 3.0]})
     y = pd.DataFrame({"key": y_values, "m": [1.0, 2.0, 3.0]})
-    assert is_equal(diff_table(x, y, by=["key"]))
+    assert is_matching(diff_table(x, y, by=["key"]))
 
 
 @pytest.mark.parametrize(
@@ -342,7 +342,7 @@ def test_repeated_keys_are_paired_with_a_warning():
     x = pd.DataFrame({"k": [1, 1], "v": [1.0, 2.0]})
     with pytest.warns(DiffWarning, match="repeated key"):
         d = diff_table(x, x)
-    assert is_equal(d)
+    assert is_matching(d)
 
 
 def test_duplicates_error():
