@@ -33,6 +33,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/pedrobtz/py-dazdiff"
 Issues = "https://github.com/pedrobtz/py-dazdiff/issues"
+Changelog = "https://github.com/pedrobtz/py-dazdiff/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dazdiff = "dazdiff.cli:main"
