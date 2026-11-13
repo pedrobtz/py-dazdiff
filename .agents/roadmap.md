@@ -51,7 +51,7 @@ something the stage introduces and later stages build on.
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | [#21](https://github.com/pedrobtz/py-dazdiff/pull/21) | 2026-11-13 |
 | 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | [#22](https://github.com/pedrobtz/py-dazdiff/pull/22) | 2026-11-13 |
 | 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | [#23](https://github.com/pedrobtz/py-dazdiff/pull/23) | waiting on TestPyPI |
-| 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | reopened: critical review, #40–#49 |
+| 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | reopened by the critical review; fixes in [#71](https://github.com/pedrobtz/py-dazdiff/pull/71) |
 
 ## Stage 0 — Package identity
 

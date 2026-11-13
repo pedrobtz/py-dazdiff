@@ -311,7 +311,7 @@ def test_value_status(vx, vy, status):
 
 
 def test_tolerances_apply_to_finite_pairs_only():
-    d = diff_table(k_v([np.inf, 1.0, 0.0]), k_v([-np.inf, 1.5, 0.0]), tolerance=np.inf)
+    d = diff_table(k_v([np.inf, 1.0, 0.0]), k_v([-np.inf, 1.5, 0.0]), tolerance=1e308)
     assert status_of(d, "V", K=1) == "changed"
     assert status_of(d, "V", K=2) == "same"
 

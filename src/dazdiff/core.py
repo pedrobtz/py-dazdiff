@@ -27,8 +27,54 @@ class DiffWarning(UserWarning):
     """The answer may be wrong, e.g. rows were paired by arrival order."""
 
 
+class _PairingWarning(DiffWarning):
+    """Repeated keys were paired in arrival order (a DiffWarning; the subclass lets
+    assert_table_equal() drop it when it refuses the pairing outright)."""
+
+
 class DiffNote(UserWarning):
     """An expected side effect, e.g. a column was dropped or a value truncated."""
+
+
+# --- argument checks ---------------------------------------------------------
+
+
+def _check_frame(v, name: str) -> None:
+    if not isinstance(v, pd.DataFrame):
+        raise DiffError(f"`{name}` must be a pandas DataFrame, not {type(v).__name__}.")
+
+
+def _check_result(d) -> None:
+    if not isinstance(d, pd.DataFrame) or "status" not in d:
+        raise DiffError("`d` must be a result of diff_table().")
+
+
+def _check_threshold(v, name: str, allow_none: bool = False) -> None:
+    if v is None and allow_none:
+        return
+    ok = (
+        isinstance(v, (int, float, np.integer, np.floating))
+        and not isinstance(v, (bool, np.bool_))
+        and bool(np.isfinite(v))
+        and v >= 0
+    )
+    if not ok:
+        none = "None or " if allow_none else ""
+        raise DiffError(f"`{name}` must be {none}a single finite number >= 0, not {v!r}.")
+
+
+def _check_columns_arg(v, name: str, allow_empty: bool) -> None:
+    """A column name, or a list or tuple of them."""
+    if isinstance(v, str):
+        return
+    ok = isinstance(v, (list, tuple)) and all(isinstance(c, str) for c in v)
+    if not ok or (not v and not allow_empty):
+        what = (
+            "a column name or a non-empty list of them"
+            if not allow_empty
+            else ("a keyword, a column name or a list of them")
+        )
+        raise DiffError(f"`{name}` must be {what}, not {v!r}.")
 
 
 # --- names -------------------------------------------------------------------
@@ -284,11 +330,21 @@ def _cast_to_int(
     return out.astype(x.dtype)
 
 
+def _object_needs_text(y: pd.Series, x: pd.Series) -> bool:
+    """Two ``object`` columns share a dtype but not a type: pandas 2 reads text as
+    object, and an object column of y may hold numbers. When x holds only text and y
+    does not, y is cast to text like any other column."""
+    if not pd.api.types.is_object_dtype(x):
+        return False
+    texts = all(isinstance(v, str) for v in x.dropna())
+    return texts and not all(isinstance(v, str) for v in y.dropna())
+
+
 def _cast_to(
     y: pd.Series, x: pd.Series, name: str, truncate: bool, truncated: dict, alerts: list
 ) -> pd.Series:
     """Cast column ``y`` to the dtype of the benchmark column ``x``."""
-    if y.dtype == x.dtype:
+    if y.dtype == x.dtype and not _object_needs_text(y, x):
         return y
 
     # A column with no values (how a reader types an empty column) casts to anything.
@@ -338,7 +394,14 @@ def _cast_to(
                 f"Cannot cast `{name}` to a date-time: it holds numbers ({y.dtype}), "
                 "not dates; convert it first."
             )
-        conv = pd.to_datetime(y, errors="coerce")
+        try:
+            with warnings.catch_warnings():
+                # pandas 2 warns about text in several UTC offsets where pandas 3
+                # raises; both become the same DiffError.
+                warnings.simplefilter("error", FutureWarning)
+                conv = pd.to_datetime(y, errors="coerce")
+        except (TypeError, ValueError, FutureWarning) as e:
+            raise DiffError(f"Cannot cast `{name}` to a date-time: {e}") from None
         if (y.notna() & conv.isna()).any():
             v = _first_bad(y, conv)
             raise DiffError(f"Cannot cast `{name}` to a date-time: {_show(v)} is not one.")
@@ -388,7 +451,7 @@ def _add_seq(df: pd.DataFrame, by: list[str], duplicates: str, label: str, alert
             raise DiffError(f"`{label}` has {n_dup} row(s) with a repeated key.")
         alerts.append(
             (
-                DiffWarning,
+                _PairingWarning,
                 f"`{label}` has {n_dup} row(s) with a repeated key; "
                 "they are paired in order of arrival.",
             )
@@ -547,6 +610,8 @@ def diff_table(
     DiffNote
         For expected side effects: dropped or ignored columns, truncation, no measures.
     """
+    _check_frame(x, "x")
+    _check_frame(y, "y")
     if mode not in _MODES:
         raise DiffError(f"`mode` must be one of {_MODES}, not {mode!r}.")
     if duplicates not in _DUPLICATES:
@@ -561,8 +626,13 @@ def diff_table(
         cast = mode == "benchmark"
     if row_key != "none" and by is not None:
         raise DiffError("`row_key` adds a key of its own, so it cannot be combined with `by`.")
-    if not (tolerance >= 0 and rel_tol >= 0):
-        raise DiffError("`tolerance` and `rel_tol` must be non-negative numbers.")
+    _check_threshold(tolerance, "tolerance")
+    _check_threshold(rel_tol, "rel_tol")
+    _check_columns_arg(measures, "measures", allow_empty=True)
+    if by is not None:
+        _check_columns_arg(by, "by", allow_empty=False)
+    if exclude is not None:
+        _check_columns_arg(exclude, "exclude", allow_empty=True)
     if duplicates == "aggregate" and (tolerance or rel_tol):
         raise DiffError(
             'duplicates = "aggregate" compares multisets exactly; `tolerance` and `rel_tol` '
@@ -711,6 +781,11 @@ def _diff_table(
         missing = [g for g in given if _canon(g) not in x.columns]
         if missing:
             raise DiffError(f"Key column(s) not found in `x`: {_join(missing)}.")
+        if not (isinstance(measures, str) and measures in _MEASURE_KEYWORDS):
+            named = [measures] if isinstance(measures, str) else list(measures)
+            both = [m for m in named if _canon(m) in by]
+            if both:
+                raise DiffError(f"`by` and `measures` both name: {_join(both)}.")
         meas = [m for m in _select_measures(x, measures, x_names) if m not in by]
         rest = [c for c in x.columns if c not in by and c not in meas]
         if rest:
@@ -901,7 +976,13 @@ def _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts):
 
 
 def _multiset(values: pd.Series) -> tuple:
-    """The values of one group as a sorted tuple; missing values last, as NaN."""
+    """The values of one group as a sorted tuple; missing values last, as NaN.
+
+    Integers stay Python ints, so values above 2**53 that differ stay different.
+    """
+    if _is_int(values):
+        present = sorted(int(v) for v in values.dropna().tolist())
+        return (*present, *([math.nan] * int(values.isna().sum())))
     v = values.to_numpy(dtype=float, na_value=np.nan)
     v = np.where(v == 0, 0.0, v)  # -0.0 and 0.0 are the same value
     return tuple(np.sort(v).tolist())  # np.sort puts NaN last
@@ -947,6 +1028,7 @@ def _aggregate(x, y, by, meas, x_names):
 
 def diff_summary(d: pd.DataFrame) -> pd.DataFrame:
     """Condense a :func:`diff_table` result per measure."""
+    _check_result(d)
     groups = d["metric"] if "metric" in d else pd.Series("<rows>", index=d.index, name="metric")
     counts = pd.crosstab(groups, d["status"]).reindex(columns=STATUSES, fill_value=0)
     counts.columns = [f"n_{s}" for s in STATUSES]
@@ -997,15 +1079,9 @@ def is_matching(
     tolerances apply to finite pairs only. When only one is given, the other is 0.
     A row found in only one table never matches.
     """
-    for arg, v in (("tolerance", tolerance), ("rel_tol", rel_tol)):
-        ok = v is None or (
-            isinstance(v, (int, float, np.integer, np.floating))
-            and not isinstance(v, bool)
-            and np.isfinite(v)
-            and v >= 0
-        )
-        if not ok:
-            raise DiffError(f"`{arg}` must be None or a single finite number >= 0.")
+    _check_result(d)
+    _check_threshold(tolerance, "tolerance", allow_none=True)
+    _check_threshold(rel_tol, "rel_tol", allow_none=True)
     status = d["status"].astype(str).to_numpy()
     if tolerance is None and rel_tol is None:
         return bool((status == "same").all())
@@ -1062,8 +1138,7 @@ def diff_explain(d: pd.DataFrame, column: str | None = None, *, among: str = "al
     is the value. ``among="joined"`` counts only rows found in both tables, so the
     explanation is of the changed values alone.
     """
-    if not isinstance(d, pd.DataFrame) or "status" not in d:
-        raise DiffError("`d` must be a result of diff_table().")
+    _check_result(d)
     if among not in _AMONG:
         raise DiffError(f"`among` must be one of {_AMONG}, not {among!r}.")
     ids = _result_ids(d)
@@ -1129,6 +1204,22 @@ def diff_explain(d: pd.DataFrame, column: str | None = None, *, among: str = "al
     return out.sort_values(["identifies", "mixed", "n_values"], kind="stable", ignore_index=True)
 
 
+def _check_one_comparison(d: pd.DataFrame, ids: list[str], unit: list[str], shape: str):
+    """Refuse a frame holding several diff_table() results, such as two joined with
+    ``pd.concat``: row ids restart at 1 in each, so rows of different comparisons
+    would be read as one (decided 2026-11-13, #41)."""
+    record = unit + (["metric"] if "metric" in d else [])
+    clash = bool(d.duplicated(record).any())
+    if not clash and shape != "groups" and ids and len(d):
+        keys = d.groupby(unit, dropna=False)[ids].nunique(dropna=False)
+        clash = bool((keys > 1).to_numpy().any())
+    if clash:
+        raise DiffError(
+            "`d` holds more than one comparison (results joined with pd.concat?): "
+            "its row ids repeat. Explain or report each diff_table() result on its own."
+        )
+
+
 def _explain_units(d: pd.DataFrame, ids: list[str], shape: str) -> pd.DataFrame:
     """One record per row (per key with ``"groups"``), with the status of the row as
     a whole: ``only_x`` or ``only_y`` by membership, which comes from ``row_id`` or
@@ -1137,6 +1228,7 @@ def _explain_units(d: pd.DataFrame, ids: list[str], shape: str) -> pd.DataFrame:
     present = "n_rows" if shape == "groups" else "row_id"
     # A row is its pair of source rows, which tells paired duplicates apart.
     unit = ids if shape == "groups" else ["row_id_x", "row_id_y"]
+    _check_one_comparison(d, ids, unit, shape)
     w = d[list(dict.fromkeys(ids + unit))].copy()
     w["_in_x"] = d[f"{present}_x"].notna().to_numpy()
     w["_in_y"] = d[f"{present}_y"].notna().to_numpy()
@@ -1222,26 +1314,34 @@ def assert_table_equal(
     if rel_tol is _UNSET:
         rel_tol = 0.0 if duplicates == "aggregate" else _SQRT_EPS
 
+    caught: list = []
+    refused = False
     try:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             d = diff_table(expected, actual, rel_tol=rel_tol, **kwargs)
+        # Pairing repeated keys of rows with measures decides identity by arrival
+        # order, which an assertion must not do unless the caller accepted it.
+        if duplicates is None and d.attrs.get("paired") and d.attrs.get("measures"):
+            refused = True
+            raise DiffError(
+                "`actual` or `expected` has repeated keys, which diff_table() pairs in "
+                "arrival order.\nassert_table_equal() does not pair duplicate keys; pass "
+                'duplicates="disambiguate" or "aggregate" to accept them.'
+            )
     except DiffError as e:
         if getattr(e, "disjoint", False):
             raise AssertionError(
                 f"`actual` does not match `expected` (as `y` and `x`): {e}"
             ) from None
         raise
-    # Pairing repeated keys of rows with measures decides identity by arrival order,
-    # which an assertion must not do unless the caller accepted it.
-    if duplicates is None and d.attrs.get("paired") and d.attrs.get("measures"):
-        raise DiffError(
-            "`actual` or `expected` has repeated keys, which diff_table() pairs in "
-            "arrival order.\nassert_table_equal() does not pair duplicate keys; pass "
-            'duplicates="disambiguate" or "aggregate" to accept them.'
-        )
-    for w in caught:
-        warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+    finally:
+        # Passed on whatever happens: a warning (an `exclude` typo, a dropped column)
+        # often explains the failure that follows (#45).
+        for w in caught:
+            if refused and issubclass(w.category, _PairingWarning):
+                continue  # the DiffError says it
+            warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
 
     off = d[d["status"] != "same"]
     if not len(off):

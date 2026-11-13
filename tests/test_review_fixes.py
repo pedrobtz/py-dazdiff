@@ -109,7 +109,7 @@ def test_integer_measures_within_a_tolerance():
 def test_a_number_is_not_cast_to_a_datetime(values):
     x = pd.DataFrame({"t": pd.to_datetime(["2024-01-01"]), "v": [1.0]})
     y = pd.DataFrame({"t": values, "v": [1.0]})
-    with pytest.raises(DiffError, match="date-time"):
+    with pytest.raises(DiffError, match="holds numbers"):
         diff_table(x, y)
 
 
