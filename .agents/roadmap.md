@@ -29,7 +29,7 @@ share one class.
 | Profile | Runs | Target |
 | --- | --- | --- |
 | `quick` | `ruff check`, `ruff format --check`, pytest on Ubuntu, Python 3.13, latest pandas | under 5 minutes |
-| `full` | pytest on Ubuntu, macOS and Windows × Python 3.10–3.14; a lowest-direct-dependencies job (`uv run --resolution lowest-direct`, pandas 2.2.2); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
+| `full` | pytest on Ubuntu and Windows × Python 3.10–3.14, macOS × 3.10 and 3.14 (runner capacity, 2026-11-13); a lowest-direct-dependencies job (`uv run --resolution lowest-direct`, pandas 2.2.2); coverage; build sdist and wheel, `twine check`, and run the installed CLI on the example CSVs | — |
 
 Pull requests run `quick`; pushes to `main` and pull requests labelled
 `full-ci` run `full`. A pull request's superseded runs are cancelled; a push to `main`
