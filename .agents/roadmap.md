@@ -42,7 +42,7 @@ something the stage introduces and later stages build on.
 | 0 | [Package identity](#stage-0--package-identity) | quick | [#2](https://github.com/pedrobtz/py-dazdiff/issues/2) | [#12](https://github.com/pedrobtz/py-dazdiff/pull/12) | 2026-11-06 |
 | 1 | [Core parity](#stage-1--core-parity) | full | [#3](https://github.com/pedrobtz/py-dazdiff/issues/3) | [#13](https://github.com/pedrobtz/py-dazdiff/pull/13) | 2026-11-06 |
 | 2 | [Duplicates and row keys](#stage-2--duplicates-and-row-keys) | quick | [#4](https://github.com/pedrobtz/py-dazdiff/issues/4) | [#14](https://github.com/pedrobtz/py-dazdiff/pull/14) | 2026-11-06 |
-| 3 | [Parity with dazdiff main](#stage-3--parity-with-dazdiff-main) | full | [#15](https://github.com/pedrobtz/py-dazdiff/issues/15) | | |
+| 3 | [Parity with dazdiff main](#stage-3--parity-with-dazdiff-main) | full | [#15](https://github.com/pedrobtz/py-dazdiff/issues/15) | [#18](https://github.com/pedrobtz/py-dazdiff/pull/18) | 2026-11-13 |
 | 4 | [Explain](#stage-4--explain) | quick | [#16](https://github.com/pedrobtz/py-dazdiff/issues/16) | | |
 | 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | | |
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | | |
