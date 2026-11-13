@@ -38,10 +38,12 @@ dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_a
 | Option | Meaning |
 | --- | --- |
 | `-b, --by COLS` | comma-separated key columns (default: every non-measure column) |
+| `--exclude COLS` | comma-separated columns to leave out of both files |
 | `-m, --measures` | `numeric` (default), `numeric+integer`, or comma-separated names |
 | `--mode` | `benchmark` (default) or `equal` |
 | `-t, --tolerance` | absolute tolerance |
 | `-r, --rel-tol` | relative tolerance (relative to the larger magnitude) |
+| `--no-cast` | do not cast the second file to the first's types; they must agree |
 | `--no-truncate` | refuse casts that would truncate values to integers |
 | `--duplicates` | `disambiguate` repeated keys in arrival order (default), `aggregate` them as multisets, or `error` |
 | `--row-key` | `position` or `sorted`: add a `row_number` key when every column is a measure |
@@ -63,12 +65,18 @@ other is compared as float.
 
 ```python
 import pandas as pd
-from dazdiff import diff_table, diff_summary
+from dazdiff import diff_table, diff_summary, is_matching
 
 d = diff_table(benchmark, stored, by=["id", "region"], measures="numeric+integer")
 d[d["status"] != "same"]
 diff_summary(d)
+is_matching(d)                 # False
+is_matching(d, tolerance=1)    # judged again at a looser threshold
 ```
+
+`exclude=` leaves technical columns (load stamps, run ids) out of both tables.
+When a number of the tested table is cast to the benchmark's text, it is
+written with the decimals the benchmark uses, so `2` meets `"2.0"`.
 
 With no measure columns, rows are compared as wholes, and a repeated row counts
 once per copy. Values truncated when casting to the benchmark's integer

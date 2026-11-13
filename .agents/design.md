@@ -47,6 +47,7 @@ reference for what comes after.
 | condition classes (`dazdiff_error_*`, …) | three classes: `DiffError`, `DiffWarning`, `DiffNote` | the message names what happened; finer classes only if users ask |
 | result keyed by the identity | sorted by the identity, default `RangeIndex` | pandas has no keys; sorting gives the same reading order |
 | CLI | first-class, in 0.1.0 | the R roadmap marks it L; for Python it is the main entry point |
+| one empty table and one not: an error (no key aligns) | its rows are `only_x` or `only_y` (§4.4) | decided 2026-11-06; an empty load is a finding to report, not a question that cannot be answered (recorded here 2026-11-13) |
 
 ## 3 API
 
