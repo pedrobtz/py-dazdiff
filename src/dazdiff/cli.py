@@ -6,11 +6,13 @@ import argparse
 import sys
 import warnings
 from collections.abc import Sequence
+from pathlib import Path
 
 import pandas as pd
 
 from . import __version__
 from .core import DiffError, _canon, diff_explain, diff_summary, diff_table, is_matching
+from .report import diff_report
 
 
 def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
@@ -25,6 +27,18 @@ def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
         if kinds == {"i", "f"}:
             x[cx] = x[cx].astype(float)
             y[cy] = y[cy].astype(float)
+
+
+def _printable(text: str, stream) -> bool:
+    """Whether ``stream`` can encode ``text`` (a Windows console often cannot)."""
+    encoding = getattr(stream, "encoding", None)
+    if not encoding:
+        return False
+    try:
+        text.encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
 
 
 def _csv_list(value: str) -> list[str]:
@@ -84,6 +98,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--output", help="write the full comparison to this CSV file")
     p.add_argument("-s", "--summary", action="store_true", help="print the per-measure summary")
     p.add_argument(
+        "-R", "--report", action="store_true", help="print a text report of the comparison"
+    )
+    p.add_argument("--x-name", help="the first file's name in the report (default: its file name)")
+    p.add_argument("--y-name", help="the second file's name in the report (default: its file name)")
+    p.add_argument(
+        "--ascii",
+        action="store_true",
+        help="draw the report in ASCII (the default when the terminal cannot show Unicode)",
+    )
+    p.add_argument(
         "-e",
         "--explain",
         nargs="?",
@@ -142,7 +166,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.output:
         d.to_csv(args.output, index=False)
     if not args.quiet:
-        if args.explain is not None:
+        if args.report:
+            r = diff_report(d, args.x_name or Path(args.x).name, args.y_name or Path(args.y).name)
+            text = r.format(unicode=True)
+            if args.ascii or not _printable(text, sys.stdout):
+                text = r.format(unicode=False)
+            print(text)
+        elif args.explain is not None:
             try:
                 e = diff_explain(d, args.explain or None, among="joined" if args.joined else "all")
             except DiffError as err:

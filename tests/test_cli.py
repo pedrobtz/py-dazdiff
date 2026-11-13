@@ -1,3 +1,6 @@
+import io
+import sys
+
 import pandas as pd
 import pytest
 
@@ -99,3 +102,26 @@ def test_cli_explain(csvs, capsys):
 def test_cli_explain_refuses_a_measure(csvs, capsys):
     assert main([*csvs, "-b", "id,region", "--explain", "amount"]) == 2
     assert "key column of the result" in capsys.readouterr().err
+
+
+def test_cli_report(csvs, capsys):
+    assert main([*csvs, "-b", "id,region", "--report"]) == 1
+    out = capsys.readouterr().out
+    assert "dazdiff report" in out
+    assert "x.csv is tested against" not in out  # x is the benchmark
+    assert "y.csv is tested against x.csv" in out
+    assert main([*csvs, "-b", "id,region", "-R", "--x-name", "bench", "--ascii"]) == 1
+    out = capsys.readouterr().out
+    assert "y.csv is tested against bench" in out
+    assert out.isascii()
+
+
+def test_cli_report_falls_back_to_ascii(csvs, monkeypatch):
+    raw = io.BytesIO()
+    console = io.TextIOWrapper(raw, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", console)
+    assert main([*csvs, "-b", "id,region", "--report"]) == 1
+    console.flush()
+    text = raw.getvalue().decode("cp1252")
+    assert "dazdiff report" in text
+    assert text.isascii()
