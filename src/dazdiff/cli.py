@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import pandas as pd
 
 from . import __version__
-from .core import DiffError, _canon, diff_summary, diff_table, is_equal
+from .core import DiffError, _canon, diff_summary, diff_table, is_matching
 
 
 def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
@@ -41,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("y", help="second CSV file (the tested table in benchmark mode)")
     p.add_argument("-b", "--by", type=_csv_list, help="comma-separated key columns")
     p.add_argument(
+        "--exclude",
+        type=_csv_list,
+        help="comma-separated columns to leave out of both files",
+    )
+    p.add_argument(
         "-m",
         "--measures",
         default="numeric",
@@ -49,6 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=["benchmark", "equal"], default="benchmark")
     p.add_argument("-t", "--tolerance", type=float, default=0.0, help="absolute tolerance")
     p.add_argument("-r", "--rel-tol", type=float, default=0.0, help="relative tolerance")
+    p.add_argument(
+        "--no-cast",
+        dest="cast",
+        action="store_const",
+        const=False,
+        default=None,
+        help="do not cast the second file to the first's types; they must agree",
+    )
     p.add_argument(
         "--no-truncate",
         dest="truncate",
@@ -99,6 +112,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 x,
                 y,
                 by=args.by,
+                exclude=args.exclude,
+                cast=args.cast,
                 row_key=args.row_key,
                 measures=measures,
                 mode=args.mode,
@@ -119,7 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif not args.output:
             shown = d[d["status"] != "same"] if args.only_diffs else d
             print(shown.to_string(index=False) if len(shown) else "No differences.")
-    return 0 if is_equal(d) else 1
+    return 0 if is_matching(d) else 1
 
 
 if __name__ == "__main__":
