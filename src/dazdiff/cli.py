@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import pandas as pd
 
 from . import __version__
-from .core import DiffError, _canon, diff_summary, diff_table, is_matching
+from .core import DiffError, _canon, diff_explain, diff_summary, diff_table, is_matching
 
 
 def _align_numeric(x: pd.DataFrame, y: pd.DataFrame) -> None:
@@ -84,6 +84,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--output", help="write the full comparison to this CSV file")
     p.add_argument("-s", "--summary", action="store_true", help="print the per-measure summary")
     p.add_argument(
+        "-e",
+        "--explain",
+        nargs="?",
+        const="",
+        metavar="COLUMN",
+        help="print which key values split same from not same; with COLUMN, per value of it",
+    )
+    p.add_argument(
+        "--joined",
+        action="store_true",
+        help="with --explain, count only rows found in both files",
+    )
+    p.add_argument(
         "-d", "--only-diffs", action="store_true", help="print only rows that are not 'same'"
     )
     p.add_argument("-q", "--quiet", action="store_true", help="print nothing; use the exit status")
@@ -129,7 +142,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.output:
         d.to_csv(args.output, index=False)
     if not args.quiet:
-        if args.summary:
+        if args.explain is not None:
+            try:
+                e = diff_explain(d, args.explain or None, among="joined" if args.joined else "all")
+            except DiffError as err:
+                print(f"dazdiff: error: {err}", file=sys.stderr)
+                return 2
+            print(e.to_string(index=False))
+        elif args.summary:
             print(diff_summary(d).to_string(index=False))
         elif not args.output:
             shown = d[d["status"] != "same"] if args.only_diffs else d
