@@ -51,7 +51,7 @@ something the stage introduces and later stages build on.
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | [#21](https://github.com/pedrobtz/py-dazdiff/pull/21) | 2026-11-13 |
 | 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | [#22](https://github.com/pedrobtz/py-dazdiff/pull/22) | 2026-11-13 |
 | 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | [#23](https://github.com/pedrobtz/py-dazdiff/pull/23) | waiting on TestPyPI |
-| 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | 2026-11-13 |
+| 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | reopened: critical review, #40–#49 |
 
 ## Stage 0 — Package identity
 
@@ -344,6 +344,11 @@ From the R package's roadmap, in its priority order:
 - `diff_explain(d, x=)`: explain by columns that were not compared, joined
   back from the inputs: from the R roadmap, unprioritized.
 - Non-numeric measures (text, bool, dates), opt-in: M.
+- Types beyond what a CSV read gives ([design §1](design.md#1-purpose-and-scope)): lossless
+  widening in equal mode between `str`/`object`/`string` and between the
+  numpy and nullable dtypes; a rule for time-zone-aware date-times written as
+  text ([#52](https://github.com/pedrobtz/py-dazdiff/issues/52)); categorical
+  and timedelta columns: M.
 - Projected-size warning before large comparisons: M.
 - Parquet input for the CLI through an optional `pyarrow` extra: L.
 - JSON export of the report, hidden columns, slim report: L.
