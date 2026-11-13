@@ -324,6 +324,13 @@ prints the result, `--summary`, or `--report`.
 - License: MIT.
 - Published to PyPI under the name from §11, via a GitHub Actions workflow
   using PyPI trusted publishing on a `v*` tag. TestPyPI first.
+- `.github/workflows/release.yml` builds, runs `twine check` and the built
+  wheel's CLI on the examples, then publishes: a manual run to TestPyPI
+  (environment `testpypi`), a `v*` tag to PyPI (environment `pypi`), the tag
+  checked against `project.version`. No API tokens.
+- The version has one source, `project.version` in `pyproject.toml`;
+  `dazdiff.__version__` reads it from the installed metadata (decided
+  2026-11-13, Stage 8).
 - `.agents/` is excluded from the sdist.
 
 ## 10 After 0.1.0
