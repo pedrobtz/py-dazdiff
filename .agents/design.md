@@ -127,6 +127,12 @@ bool, string, datetime.
   column, its count and an example; `truncate=False` refuses with an error.
   Truncations are in `result.attrs["truncated"]`.
 - A value that cannot be cast is an error naming the column and the value.
+- To integer, exactly (decided 2026-11-13, Stage 9 review, #25): integer
+  dtypes and integer text become Python ints, so a value above 2**53 keeps
+  every digit; other numbers go through float and truncate. A value outside
+  the target dtype's range (int8 … uint64) is an error, never wrapped.
+- To date-time: numbers and booleans are refused (#27); pandas would read
+  them as nanoseconds since 1970.
 - Both pandas 2 (object strings) and pandas 3 (`str` dtype) are supported.
 - To bool: numbers must be 0 or 1; text is `true`/`t`/`yes`/`1` or
   `false`/`f`/`no`/`0`, case-insensitive. To string: see the number-to-text
@@ -173,7 +179,9 @@ equal infinities), or, for a finite pair, `abs_diff <= tolerance` or
 - `diff = value_y - value_x`; `abs_diff = |diff|`.
 - `rel_diff = abs_diff / max(|value_x|, |value_y|)`, 0 when both are 0,
   computed by scaling before subtracting so it cannot overflow.
-- Integer measures are compared as float.
+- Integer measures are compared as integers (decided 2026-11-13, Stage 9
+  review, #26): `status` and `diff` are exact above 2**53, `diff` computed in
+  int64 with overflow detected. `value_x`/`value_y` are still float64.
 
 ### 4.6 Duplicate keys
 
