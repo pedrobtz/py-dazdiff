@@ -1,13 +1,13 @@
 # dazdiff (Python)
 
-A Python port of the R package daffiz (`pedrobtz/dazdiff`): compare two
+A Python port of the R package dazdiff (`pedrobtz/dazdiff`, formerly daffiz): compare two
 tables value by value, as a library on pandas DataFrames and as a CLI on CSV
 files.
 
 ## Where things are decided
 
 - `.agents/design.md` is the single source of truth for what the package is
-  and why: API, behaviour, divergences from daffiz, open questions. A
+  and why: API, behaviour, divergences from the R package, open questions. A
   decision changes the design, with a dated one-line reason.
 - `.agents/roadmap.md` owns the order of work: stages, exit criteria, CI
   tiers, issue links. Each stage is a sub-issue of `v0.1.0` (#1), closed by
@@ -35,7 +35,7 @@ merges on.
 
 - Source lives in `src/dazdiff/`; `core.py` is the library, `cli.py` the
   command. Public names are re-exported from `__init__.py`.
-- Behaviour follows daffiz unless `design.md` §2.1 records a divergence.
+- Behaviour follows the R package unless `design.md` §2.1 records a divergence.
 - The caller's DataFrames are never modified.
 - Every user-visible change gets a line under `## Unreleased` in
   `CHANGELOG.md`.
