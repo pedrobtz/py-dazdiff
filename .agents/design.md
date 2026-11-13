@@ -266,6 +266,8 @@ with it `top_k`. Sections are bounded by `sample_k`.
 - The text is the R package's, byte for byte, for the same comparison: its
   report snapshots are this package's test fixtures. Numbers are written as
   R's `format(digits=)` writes them.
+- "(...and N more)" counts the distinct keys not shown, not rows (#30;
+  the R package counts rows, so a repeated key inflates it there).
 - `DiffReport` holds the computed report as data (`rows`, `by_measure`,
   `only_x`, `only_y`, …) apart from its drawing.
 

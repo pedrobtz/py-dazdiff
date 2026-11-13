@@ -56,3 +56,6 @@ First release.
 - `assert_table_equal(actual, expected)` asserts that a table matches a
   reference within a relative `1.5e-8`, failing with `diff_summary()` and
   the first records that differ.
+- The report's "(...and N more)" counts keys not shown, not rows.
+- Extra columns of `y` whose names normalize to nothing or clash are listed
+  as dropped, in `attrs["dropped"]` and the note.
