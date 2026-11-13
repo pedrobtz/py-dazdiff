@@ -68,3 +68,20 @@ def test_cli_duplicates_aggregate(tmp_path):
     assert main([str(x), str(y), "-q"]) == 1
     assert main([str(x), str(y), "--duplicates", "aggregate", "-q"]) == 0
     assert main([str(x), str(y), "--duplicates", "error", "-q"]) == 2
+
+
+def test_cli_exclude(tmp_path, capsys):
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("id,run,v\n1,r1,1.5\n2,r1,2.5\n")
+    y.write_text("id,run,v\n1,r2,1.5\n2,r2,2.5\n")
+    assert main([str(x), str(y)]) == 2
+    assert "exclude=['run']" in capsys.readouterr().err
+    assert main([str(x), str(y), "--exclude", "run"]) == 0
+
+
+def test_cli_no_cast(tmp_path, capsys):
+    x, y = tmp_path / "x.csv", tmp_path / "y.csv"
+    x.write_text("id,v\n1,1.5\n")
+    y.write_text("id,v\na,1.5\n")
+    assert main([str(x), str(y), "--no-cast"]) == 2
+    assert "cast=False" in capsys.readouterr().err

@@ -6,7 +6,7 @@ from .core import (
     DiffWarning,
     diff_summary,
     diff_table,
-    is_equal,
+    is_matching,
     normalize_names,
 )
 
@@ -17,6 +17,6 @@ __all__ = [
     "DiffWarning",
     "diff_summary",
     "diff_table",
-    "is_equal",
+    "is_matching",
     "normalize_names",
 ]
