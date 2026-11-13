@@ -70,8 +70,8 @@ from dazdiff import diff_table, diff_summary, is_matching
 d = diff_table(benchmark, stored, by=["id", "region"], measures="numeric+integer")
 d[d["status"] != "same"]
 diff_summary(d)
-is_matching(d)                 # False
-is_matching(d, tolerance=1)    # judged again at a looser threshold
+is_matching(d)  # False
+is_matching(d, tolerance=1)  # judged again at a looser threshold
 ```
 
 `exclude=` leaves technical columns (load stamps, run ids) out of both tables.
