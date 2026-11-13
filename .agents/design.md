@@ -142,6 +142,9 @@ bool, string, datetime.
   dtypes and integer text become Python ints, so a value above 2**53 keeps
   every digit; other numbers go through float and truncate. A value outside
   the target dtype's range (int8 … uint64) is an error, never wrapped.
+- An `object` column of `y` is cast to text when `x`'s holds only text,
+  though both dtypes are `object` (pandas 2's text): ints in `y` meet text
+  keys in `x` (#42).
 - To date-time: numbers and booleans are refused (#27); pandas would read
   them as nanoseconds since 1970.
 - Both pandas 2 (object strings) and pandas 3 (`str` dtype) are supported.
@@ -204,7 +207,8 @@ equal infinities), or, for a finite pair, `abs_diff <= tolerance` or
 - **error**: refuses, also for repeated rows when there are no measures,
   since the caller asked for it (decided 2026-11-06, Stage 2).
 - Aggregated values are sorted tuples (`values_x`, `values_y`), missing
-  values last; `-0.0` and `0.0` are the same value.
+  values last; `-0.0` and `0.0` are the same value. Integer measures stay
+  Python ints, so the comparison is exact above 2**53 (#40).
 
 ### 4.7 Virtual row keys
 
@@ -242,8 +246,19 @@ extra keys were added 2026-11-13, as R's attributes. Row ids are
 - `DiffWarning` when the answer may be wrong: invented pairing.
 - `DiffNote` for expected side effects: truncation, dropped or ignored
   columns, no measures.
+- Every public function checks its arguments and raises `DiffError`, never a
+  raw pandas or Python error (#44, 2026-11-13): `x`/`y` must be DataFrames;
+  `tolerance`/`rel_tol` a finite number >= 0, not a bool (as R refuses `Inf`);
+  `by` a name or a non-empty list of names; `measures` a keyword, a name or a
+  list (empty: whole rows); the readers' `d` a `diff_table()` result. `by`
+  and an explicit `measures` list may not name the same column (#43).
 
 ## 4a Reading a result
+
+A result is one comparison. `diff_explain()` and `diff_report()` refuse a
+frame whose row ids repeat, such as two results joined with `pd.concat`:
+row ids restart at 1 in each, so rows of different comparisons would be
+read as one (decided 2026-11-13, #41). Filtering and re-sorting are fine.
 
 - `is_matching(d)` is `True` when every row is `same`; two empty tables
   match. With `tolerance` or `rel_tol` it judges the values again at those
@@ -309,6 +324,9 @@ usable from pytest or unittest, with no pytest plugin.
 - Tables that share no key fail the assertion; every other `DiffError`
   (missing columns, uncastable values) is raised as is, since the question
   cannot be answered.
+- `diff_table()`'s warnings and notes are passed on whatever happens, also
+  when the assertion fails (#45); when it refuses a pairing, the pairing
+  warning is left out, since the error says it.
 
 ## 7 CLI
 
@@ -324,6 +342,10 @@ prints the result, `--summary`, or `--report`.
   not truncate it. A float column of whole numbers (float only because of an
   empty value) is left alone, so an integer key stays a key (decided
   2026-11-13, Stage 9 review, #28).
+- Such a column is read as a nullable integer (`Int64`), in either file, so
+  an empty cell changes neither its role nor, in equal mode, its type (#46).
+- A column written with a leading zero in either file (`007`) holds codes:
+  it is read as text in both files, so `007` and `7` stay apart (#47).
 - `--output FILE` writes the full result as CSV.
 - `--report` prints `diff_report()`, naming the tables by their file names
   unless `--x-name`/`--y-name` say otherwise; `--ascii` forces ASCII

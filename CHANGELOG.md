@@ -69,3 +69,13 @@ First release.
 - The report's "(...and N more)" counts keys not shown, not rows.
 - Extra columns of `y` whose names normalize to nothing or clash are listed
   as dropped, in `attrs["dropped"]` and the note.
+- `duplicates="aggregate"` compares integer measures exactly above 2**53.
+- `diff_explain()` and `diff_report()` refuse results joined with
+  `pd.concat`, whose row ids repeat, instead of miscounting them.
+- An `object` column of `y` holding numbers is cast to the benchmark's text.
+- `by` and `measures` naming the same column is an error.
+- Every public function raises `DiffError` for invalid arguments, and
+  `tolerance`/`rel_tol` must be finite numbers (not bools).
+- `assert_table_equal()` passes `diff_table()`'s warnings on when it fails.
+- The CLI reads an integer column with empty cells as integers, and a
+  column written with leading zeros (`007`) as text.
