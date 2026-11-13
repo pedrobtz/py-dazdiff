@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (unreleased)
+
+First release.
+
 
 - `diff_table()` compares two DataFrames value by value, in benchmark or
   equal mode; `diff_summary()` and `is_equal()` condense the result.
