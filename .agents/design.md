@@ -19,6 +19,17 @@ It answers one of two questions:
 Out of scope for the package as a whole: fuzzy row matching, schema
 migration, comparing more than two tables.
 
+**Column types in 0.1.0** (decided 2026-11-13, after the critical review):
+0.1.0 covers the basic types a CSV read gives: integers (`int64`), floats
+(`float64`), booleans, text (pandas 2 `object` strings, pandas 3 `str`) and
+naive date-times. Other types (nullable `Int64`/`Float64`/`boolean`,
+`string`, categorical, time-zone-aware date-times, timedeltas) are not
+specifically handled: they work where they behave like their basic
+counterpart and are otherwise left for later. In particular equal mode
+compares dtypes exactly, so `str` vs `object` or `Float64` vs `float64` is
+refused, and how a time-zone-aware date-time is written as text is not
+decided.
+
 ## 2 Relationship to dazdiff (R)
 
 This is a Python port of the R package
