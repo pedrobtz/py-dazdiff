@@ -1,0 +1,12 @@
++==================================================+
+|                  dazdiff report                  |
++==================================================+
+   Identity: id
+   Mode:     benchmark: y is tested against x
+
+   --- x and y match exactly (2 rows, 1 measure) ---
+
+ Columns
+ -------
+   Compared 2 columns: 1 key, 1 measure.
+   Only in y, dropped: loaded_at.

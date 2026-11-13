@@ -10,13 +10,16 @@ from .core import (
     is_matching,
     normalize_names,
 )
+from .report import DiffReport, diff_report
 
 __version__ = "0.1.0.dev0"
 __all__ = [
     "DiffError",
     "DiffNote",
+    "DiffReport",
     "DiffWarning",
     "diff_explain",
+    "diff_report",
     "diff_summary",
     "diff_table",
     "is_matching",

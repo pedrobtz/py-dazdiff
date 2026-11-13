@@ -1,0 +1,7 @@
++==================================================+
+|                  dazdiff report                  |
++==================================================+
+   Identity: id
+   Mode:     benchmark: y is tested against x
+
+   --- x and y match exactly (3 rows, 1 measure) ---

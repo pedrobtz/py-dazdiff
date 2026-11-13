@@ -673,6 +673,7 @@ def _diff_table(
 
     x_names_y = {c: y_names.get(c) for c in x.columns}
     x, y = x[by + meas].copy(), y[by + meas].copy()
+    paired = False
     if duplicates == "aggregate" and meas:
         out = _aggregate(x, y, by, meas, x_names)
         sort, shape = [*by, "metric"], "groups"
@@ -681,6 +682,8 @@ def _diff_table(
         # unless the caller asked for repeats to be refused.
         dup_rule = duplicates if meas or duplicates == "error" else "ignore"
         out, sort, shape = _pairwise(x, y, by, meas, dup_rule, tolerance, rel_tol, x_names, alerts)
+        # The cells shape drops key_seq, so whether repeated keys were paired is kept here.
+        paired = bool(x.duplicated(by).any() or y.duplicated(by).any())
 
     out = out.sort_values(sort, kind="stable", ignore_index=True, na_position="last")
     out.attrs.update(
@@ -694,6 +697,7 @@ def _diff_table(
             "dropped": dropped,
             "excluded": excluded,
             "ignored": [x_names[c] for c in rest],
+            "paired": paired,
             "truncated": {
                 c: truncated[x_names_y[c]] for c in by + meas if x_names_y.get(c) in truncated
             },
