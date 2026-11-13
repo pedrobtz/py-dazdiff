@@ -66,3 +66,6 @@ First release.
   other file reads it as float only because of an empty value.
 - Every CLI error exits with status 2 and a one-line message, including
   errors writing `--output` and undecodable files.
+- The report's "(...and N more)" counts keys not shown, not rows.
+- Extra columns of `y` whose names normalize to nothing or clash are listed
+  as dropped, in `attrs["dropped"]` and the note.
