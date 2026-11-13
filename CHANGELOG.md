@@ -62,3 +62,7 @@ First release.
   are `changed`.
 - A number cast to a date-time column is refused instead of being read as
   nanoseconds since 1970.
+- The CLI no longer turns an integer key column into a measure when the
+  other file reads it as float only because of an empty value.
+- Every CLI error exits with status 2 and a one-line message, including
+  errors writing `--output` and undecodable files.

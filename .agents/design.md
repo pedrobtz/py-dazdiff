@@ -303,10 +303,14 @@ usable from pytest or unittest, with no pytest plugin.
 prints the result, `--summary`, or `--report`.
 
 - Every `diff_table()` argument has a flag; list values are comma-separated.
-- Exit status: 0 when every row is `same`, 1 when they differ, 2 on error.
+- Exit status: 0 when every row is `same`, 1 when they differ, 2 on any
+  error, with a one-line message and no traceback (#29).
 - Warnings and notes go to stderr; `--quiet` silences everything.
-- CSV carries no types: a column read as integer in one file and float in
-  the other is read as float in both, so the cast does not truncate it.
+- CSV carries no types: a column read as integer in one file and as float
+  holding a fraction in the other is read as float in both, so the cast does
+  not truncate it. A float column of whole numbers (float only because of an
+  empty value) is left alone, so an integer key stays a key (decided
+  2026-11-13, Stage 9 review, #28).
 - `--output FILE` writes the full result as CSV.
 - `--report` prints `diff_report()`, naming the tables by their file names
   unless `--x-name`/`--y-name` say otherwise; `--ascii` forces ASCII
