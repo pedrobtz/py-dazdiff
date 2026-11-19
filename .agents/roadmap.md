@@ -50,7 +50,7 @@ something the stage introduces and later stages build on.
 | 5 | [Text report](#stage-5--text-report) | full | [#5](https://github.com/pedrobtz/py-dazdiff/issues/5) | [#20](https://github.com/pedrobtz/py-dazdiff/pull/20) | 2026-11-13 |
 | 6 | [Test helper](#stage-6--test-helper) | quick | [#6](https://github.com/pedrobtz/py-dazdiff/issues/6) | [#21](https://github.com/pedrobtz/py-dazdiff/pull/21) | 2026-11-13 |
 | 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | [#22](https://github.com/pedrobtz/py-dazdiff/pull/22) | 2026-11-13 |
-| 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | [#23](https://github.com/pedrobtz/py-dazdiff/pull/23) | waiting on TestPyPI |
+| 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | [#23](https://github.com/pedrobtz/py-dazdiff/pull/23), [#73](https://github.com/pedrobtz/py-dazdiff/pull/73) | 2026-11-19, TestPyPI upload installed and run |
 | 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | 2026-11-13, with the critical review's fixes in [#71](https://github.com/pedrobtz/py-dazdiff/pull/71) |
 
 ## Stage 0 — Package identity
@@ -355,11 +355,13 @@ From the R package's roadmap, in its priority order:
 
 ## Blocking open questions
 
-- The TestPyPI exit criterion of Stage 8 needs a trusted publisher on
-  TestPyPI (repository `pedrobtz/py-dazdiff`, workflow `release.yml`,
-  environment `testpypi`); the first manual run, 2026-11-13, stopped at
-  `invalid-publisher`. The PyPI release (#10) needs the same on PyPI
-  (environment `pypi`).
+- The PyPI release ([#10](https://github.com/pedrobtz/py-dazdiff/issues/10))
+  needs a trusted publisher on PyPI (repository `pedrobtz/py-dazdiff`,
+  workflow `release.yml`, environment `pypi`), and the `pypi` environment
+  restricted to `main` like `testpypi`. TestPyPI's was added 2026-11-19.
+- 0.1.0 is now taken on TestPyPI and cannot be uploaded again; a later
+  TestPyPI rehearsal uses a pre-release version (`0.1.0rc1`, …), set back
+  to `0.1.0` before the tag. Real PyPI's 0.1.0 is built from the tag.
 
 None otherwise. The distribution name was settled 2026-11-13
 ([§11](design.md#11-open-questions)).
