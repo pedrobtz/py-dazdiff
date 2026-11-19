@@ -1,9 +1,8 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-19)
 
 First release.
-
 
 - A documentation site, <https://pedrobtz.github.io/py-dazdiff/>, with a
   Get started guide, the command line and the API reference.
