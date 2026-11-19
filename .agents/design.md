@@ -376,9 +376,14 @@ prints the result, `--summary`, or `--report`.
   (environment `testpypi`), a `v*` tag to PyPI (environment `pypi`), the tag
   checked against `project.version`. No API tokens.
 - Workflow actions are pinned to full commit SHAs (version in a comment),
-  kept current by Dependabot; the `testpypi` and `pypi` environments deploy
-  only from `main` (decided 2026-11-19: a moved tag must not change what
-  publishes).
+  kept current by Dependabot; `testpypi` deploys only from `main` (decided
+  2026-11-19: a moved tag must not change what publishes).
+- A release is a pushed `v*` tag, never a merge: `pypi` deploys only from
+  `v*` tags and waits for the maintainer's approval; a tag ruleset lets only
+  admins create, move or delete `v*` tags, and `main` refuses force pushes
+  and deletion. The steps are in `CLAUDE.md` § Releasing (decided
+  2026-11-19: publishing stays a deliberate, approved act, like a CRAN
+  submission).
 - Documentation site built with great-docs (Quarto) from `great-docs.yml`,
   `user_guide/` and the NumPy docstrings, deployed to GitHub Pages by
   `.github/workflows/docs.yml` on pushes to `main`; great-docs and Quarto
