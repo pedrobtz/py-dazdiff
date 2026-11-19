@@ -43,8 +43,7 @@ merges on.
   `user_guide/*.qmd` (guide pages) and the docstrings; a new public name
   goes into a `reference` group. Guide output is pasted from real runs.
 - Every user-visible change gets a line under the top section of
-  `CHANGELOG.md` (`## 0.1.0 (unreleased)` until 0.1.0 ships, then
-  `## Unreleased`).
+  `CHANGELOG.md`, `## Unreleased`.
 
 ## Definition of done
 
