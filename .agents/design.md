@@ -375,6 +375,10 @@ prints the result, `--summary`, or `--report`.
   wheel's CLI on the examples, then publishes: a manual run to TestPyPI
   (environment `testpypi`), a `v*` tag to PyPI (environment `pypi`), the tag
   checked against `project.version`. No API tokens.
+- Workflow actions are pinned to full commit SHAs (version in a comment),
+  kept current by Dependabot; the `testpypi` and `pypi` environments deploy
+  only from `main` (decided 2026-11-19: a moved tag must not change what
+  publishes).
 - The version has one source, `project.version` in `pyproject.toml`;
   `dazdiff.__version__` reads it from the installed metadata (decided
   2026-11-13, Stage 8).
