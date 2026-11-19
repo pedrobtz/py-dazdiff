@@ -52,6 +52,7 @@ something the stage introduces and later stages build on.
 | 7 | [Full CI](#stage-7--full-ci) | full | [#7](https://github.com/pedrobtz/py-dazdiff/issues/7) | [#22](https://github.com/pedrobtz/py-dazdiff/pull/22) | 2026-11-13 |
 | 8 | [v0.1.0 readiness](#stage-8--v010-readiness) | full | [#8](https://github.com/pedrobtz/py-dazdiff/issues/8) | [#23](https://github.com/pedrobtz/py-dazdiff/pull/23), [#73](https://github.com/pedrobtz/py-dazdiff/pull/73) | 2026-11-19, TestPyPI upload installed and run |
 | 9 | [Review](#stage-9--review) | full | [#9](https://github.com/pedrobtz/py-dazdiff/issues/9) | [#33](https://github.com/pedrobtz/py-dazdiff/pull/33)–[#38](https://github.com/pedrobtz/py-dazdiff/pull/38) | 2026-11-13, with the critical review's fixes in [#71](https://github.com/pedrobtz/py-dazdiff/pull/71) |
+| 10 | [Documentation site](#stage-10--documentation-site) | quick | [#77](https://github.com/pedrobtz/py-dazdiff/issues/77) | | |
 
 ## Stage 0 — Package identity
 
@@ -328,6 +329,29 @@ fixed.
 - A full-profile run green on `main`, whose head becomes the release commit.
 
 No pull request closes this issue; it closes when both reviews are done.
+
+## Stage 10 — Documentation site
+
+**Issue.** [#77](https://github.com/pedrobtz/py-dazdiff/issues/77), sub-issue of
+[v0.1.0](https://github.com/pedrobtz/py-dazdiff/issues/1).
+
+**CI.** `quick`, plus the `Docs` workflow.
+
+**Goal.** 0.1.0 links a documentation site from PyPI.
+
+**Work.**
+- `great-docs.yml`: the home page from the README, the API reference
+  grouped by task (compare, report, testing, helpers).
+- `user_guide/`: Get started (one comparison, end to end) and Command line.
+- `.github/workflows/docs.yml`: build on pull requests, deploy to GitHub
+  Pages on pushes to `main`.
+- `Documentation` in `project.urls`; the README links the site.
+
+**Exit criteria.**
+- The `Docs` workflow is green on the pull request and on `main`.
+- https://pedrobtz.github.io/py-dazdiff/ serves the site.
+
+**Design.** [§9](design.md#9-packaging-and-release).
 
 ## After 0.1.0
 

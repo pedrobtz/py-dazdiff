@@ -32,6 +32,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/pedrobtz/py-dazdiff"
+Documentation = "https://pedrobtz.github.io/py-dazdiff/"
 Issues = "https://github.com/pedrobtz/py-dazdiff/issues"
 Changelog = "https://github.com/pedrobtz/py-dazdiff/blob/main/CHANGELOG.md"
 
@@ -43,7 +44,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-exclude = [".agents", ".github", "CLAUDE.md", "uv.lock", ".python-version"]
+exclude = [".agents", ".github", "CLAUDE.md", "uv.lock", ".python-version", "great-docs.yml", "user_guide"]
 
 [dependency-groups]
 dev = [

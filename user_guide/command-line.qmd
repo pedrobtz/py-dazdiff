@@ -1,0 +1,98 @@
+---
+title: Command line
+---
+
+The `dazdiff` command compares two CSV files with `diff_table()`. It is
+installed with the package, or on its own with `uv tool install dazdiff`;
+`python -m dazdiff` works too.
+
+```sh
+$ dazdiff examples/benchmark.csv examples/stored.csv --by id,region --only-diffs
+dazdiff: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_at.
+ ID REGION metric  row_id_x  row_id_y  value_x  value_y  diff  abs_diff  rel_diff  status
+  1  north  UNITS         1         1     10.0     10.4   0.4       0.4  0.038462 changed
+  2  south AMOUNT         2         2    200.0    200.5   0.5       0.5  0.002494 changed
+  4   west AMOUNT         4      <NA>    400.0      NaN   NaN       NaN       NaN  only_x
+  ...
+```
+
+## Exit status
+
+`0` when the tables match, `1` when they differ, `2` on error, so `dazdiff`
+works in scripts and CI:
+
+```sh
+dazdiff expected.csv actual.csv --by id --quiet || echo "tables differ"
+```
+
+## Output
+
+By default the comparison is printed. `--only-diffs` keeps the rows that are
+not `same`, `--summary` prints the per-measure summary, `--report` draws the
+text report, `--explain [COLUMN]` says which key values split same from not
+same, and `--output FILE` writes the full comparison to a CSV file.
+
+## CSV types
+
+CSV files carry no types, so a column read as integer in one file and as
+decimals in the other is compared as float; a column that is float only
+because of an empty value stays an integer.
+
+## All options
+
+```
+usage: dazdiff [-h] [-b BY] [--exclude EXCLUDE] [-m MEASURES]
+               [--mode {benchmark,equal}] [-t TOLERANCE] [-r REL_TOL]
+               [--no-cast] [--no-truncate]
+               [--duplicates {disambiguate,aggregate,error}]
+               [--row-key {none,position,sorted}] [--sep SEP] [-o OUTPUT] [-s]
+               [-R] [--x-name X_NAME] [--y-name Y_NAME] [--ascii]
+               [-e [COLUMN]] [--joined] [-d] [-q] [--version]
+               x y
+
+Compare two CSV files value by value. Exit status: 0 if the tables match, 1 if
+they differ, 2 on error.
+
+positional arguments:
+  x                     first CSV file (the benchmark in benchmark mode)
+  y                     second CSV file (the tested table in benchmark mode)
+
+options:
+  -h, --help            show this help message and exit
+  -b, --by BY           comma-separated key columns
+  --exclude EXCLUDE     comma-separated columns to leave out of both files
+  -m, --measures MEASURES
+                        "numeric" (default), "numeric+integer", or comma-
+                        separated column names
+  --mode {benchmark,equal}
+  -t, --tolerance TOLERANCE
+                        absolute tolerance
+  -r, --rel-tol REL_TOL
+                        relative tolerance
+  --no-cast             do not cast the second file to the first's types; they
+                        must agree
+  --no-truncate         refuse casts that would truncate values to integers
+  --duplicates {disambiguate,aggregate,error}
+                        repeated keys: pair in arrival order (default),
+                        compare as multisets, or refuse
+  --row-key {none,position,sorted}
+                        add a row_number key: rows as they come, or after
+                        sorting both files
+  --sep SEP             CSV field separator (default ',')
+  -o, --output OUTPUT   write the full comparison to this CSV file
+  -s, --summary         print the per-measure summary
+  -R, --report          print a text report of the comparison
+  --x-name X_NAME       the first file's name in the report (default: its file
+                        name)
+  --y-name Y_NAME       the second file's name in the report (default: its
+                        file name)
+  --ascii               draw the report in ASCII (the default when the
+                        terminal cannot show Unicode)
+  -e, --explain [COLUMN]
+                        print which key values split same from not same; with
+                        COLUMN, per value of it
+  --joined              with --explain, count only rows found in both files
+  -d, --only-diffs      print only rows that are not 'same'
+  -q, --quiet           print nothing; use the exit status
+  --version             show program's version number and exit
+```

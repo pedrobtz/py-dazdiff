@@ -6,7 +6,8 @@
 
 `dazdiff` compares two tables value by value, from Python or from the command
 line. It is a small Python take on the R package
-[pedrobtz/dazdiff](https://github.com/pedrobtz/dazdiff).
+[pedrobtz/dazdiff](https://github.com/pedrobtz/dazdiff). Documentation:
+<https://pedrobtz.github.io/py-dazdiff/>.
 
 Its main function, `diff_table()`, answers one of two questions:
 

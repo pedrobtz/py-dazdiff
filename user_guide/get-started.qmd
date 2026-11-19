@@ -1,0 +1,176 @@
+---
+title: Get started
+---
+
+`dazdiff` compares two tables value by value. This page walks through one
+comparison: a benchmark table and a stored copy of it that has drifted.
+
+```sh
+pip install dazdiff
+```
+
+## Two tables
+
+```python
+import pandas as pd
+from dazdiff import diff_explain, diff_report, diff_summary, diff_table, is_matching
+
+benchmark = pd.read_csv("examples/benchmark.csv")
+stored = pd.read_csv("examples/stored.csv")
+```
+
+```
+benchmark                          stored
+ id region  amount  units           ID Region  Amount  Units  loaded_at
+  1  north     100     10            1  north   100.0   10.4 2026-09-29
+  2  south     200     20            2  south   200.5   20.0 2026-09-29
+  3   east     300     30            3   east   300.0   30.0 2026-09-29
+  4   west     400     40            5  north   500.0   50.0 2026-09-29
+```
+
+The headers differ in case, `stored` has an extra `loaded_at` column, its
+numbers are floats where the benchmark has integers, row 4 is missing and row
+5 is new.
+
+## Compare
+
+```python
+d = diff_table(benchmark, stored, by=["id", "region"], measures="numeric+integer")
+```
+
+```
+DiffNote: Dropped column(s) of `y` that the benchmark `x` does not have: loaded_at.
+DiffNote: Truncated 2 value(s) while casting to the reference types:
+  Amount: 1 (200.5 -> 200)
+  Units: 1 (10.4 -> 10)
+```
+
+`diff_table()` runs in benchmark mode by default: the benchmark's columns and
+types are the truth. Column names are normalized, so `id` meets `ID`; the
+extra column is dropped; and the stored floats are cast to the benchmark's
+integers. Each of these is reported as a `DiffNote` warning, so nothing
+changes silently. `by` names the key columns, and
+`measures="numeric+integer"` compares the integer columns as values rather
+than using them as keys.
+
+The result has one row per key and measure:
+
+```python
+d[d["status"] != "same"]
+```
+
+```
+ ID REGION metric  row_id_x  row_id_y  value_x  value_y  diff  abs_diff  rel_diff status
+  4   west AMOUNT         4      <NA>    400.0      NaN   NaN       NaN       NaN only_x
+  4   west  UNITS         4      <NA>     40.0      NaN   NaN       NaN       NaN only_x
+  5  north AMOUNT      <NA>         4      NaN    500.0   NaN       NaN       NaN only_y
+  5  north  UNITS      <NA>         4      NaN     50.0   NaN       NaN       NaN only_y
+```
+
+The status is `same`, `changed`, `only_x` (in the benchmark only) or
+`only_y` (in the tested table only). To compare the two tables as equals,
+without casting, use `mode="equal"`: both must then have the same columns
+with the same types.
+
+## Summarize and judge
+
+```python
+diff_summary(d)
+```
+
+```
+metric  n  n_same  n_changed  n_only_x  n_only_y  max_abs_diff  mean_abs_diff  rmse  max_rel_diff
+AMOUNT  5       3          0         1         1           0.0            0.0   0.0           0.0
+ UNITS  5       3          0         1         1           0.0            0.0   0.0           0.0
+```
+
+`is_matching(d)` is `True` only when every row is `same`; here it is `False`.
+`is_matching(d, tolerance=1)` judges the values again at another threshold
+without running the comparison again. `diff_table()` itself takes
+`tolerance` (absolute) and `rel_tol` (relative to the larger magnitude).
+
+## Explain
+
+`diff_explain(d, "region")` counts each status per value of a column, most
+differences first:
+
+```
+  REGION  n  n_same  n_changed  n_only_x  n_only_y   class
+0   west  1       0          0         1         0  differ
+1  north  2       1          0         0         1   mixed
+2   east  1       1          0         0         0    same
+3  south  1       1          0         0         0    same
+```
+
+Without a column, `diff_explain(d)` says which key columns separate the rows
+that match from those that do not.
+
+## Report
+
+```python
+print(diff_report(d, "benchmark", "stored"))
+```
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                       dazdiff report                        ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+   Identity: id, region
+   Mode:     benchmark: stored is tested against benchmark
+
+ Columns
+ ▔▔▔▔▔▔▔
+   Compared 4 columns: 2 keys, 2 measures.
+   Only in stored, dropped: loaded_at.
+   Truncated by the cast to benchmark's types:
+     amount: 1 value (200.5 -> 200)
+     units: 1 value (10.4 -> 10)
+
+ Rows
+ ▔▔▔▔
+   benchmark rows               stored rows
+         4         (no change)       4
+
+   ┏━┯━┯━┯━┯━┓
+   ┃-│-│-│-│-┃                1 only in benchmark  (25.00%)
+   ┠─┼─┼─┼─┼─┨╌╌╌┏━┯━┯━┯━┯━┓╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╮
+   ┃ │ │ │ │ ┃ = ┃ │ │ │ │ ┃  3 same              (100.00%)  │
+   ┗━┷━┷━┷━┷━┛╌╌╌┠─┼─┼─┼─┼─┨╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯
+                 ┃+│+│+│+│+┃  1 only in stored     (25.00%)
+                 ┗━┷━┷━┷━┷━┛
+
+ Measures
+ ▔▔▔▔▔▔▔▔
+   Every measure matches on every row found in both tables (2).
+
+ Rows only in benchmark
+ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+   ┌────┬────────┐
+   │ id │ region │
+   ├────┼────────┤
+   │ 4  │ "west" │
+   └────┴────────┘
+
+ Rows only in stored
+ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+   ┌────┬─────────┐
+   │ id │ region  │
+   ├────┼─────────┤
+   │ 5  │ "north" │
+   └────┴─────────┘
+```
+
+`diff_report(d).format(unicode=False)` draws it in ASCII.
+
+## In tests
+
+```python
+from dazdiff import assert_table_equal
+
+expected = pd.DataFrame({"id": [1, 2], "amount": [100.0, 200.0]})
+actual = pd.DataFrame({"id": [1, 2], "amount": [100.0, 200.0 + 1e-12]})
+assert_table_equal(actual, expected)  # within a relative 1.5e-8
+```
+
+`assert_table_equal()` raises `AssertionError` with the summary and the first
+records that differ, so it works under pytest, unittest or a plain script.

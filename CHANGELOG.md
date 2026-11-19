@@ -5,6 +5,8 @@
 First release.
 
 
+- A documentation site, <https://pedrobtz.github.io/py-dazdiff/>, with a
+  Get started guide, the command line and the API reference.
 - `diff_table()` compares two DataFrames value by value, in benchmark or
   equal mode; `diff_summary()` and `is_equal()` condense the result.
 - The `dazdiff` command compares two CSV files and exits 0 when they match,
