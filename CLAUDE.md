@@ -22,6 +22,8 @@ uv run ruff check .           # lint
 uv run ruff format .          # format
 uv build                      # sdist and wheel into dist/
 uv run dazdiff examples/benchmark.csv examples/stored.csv --by id,region
+uv run --python 3.13 --with great-docs==0.17.0 great-docs build    # site into great-docs/_site
+uv run --python 3.13 --with great-docs==0.17.0 great-docs preview  # serve it locally
 ```
 
 ## CI
@@ -37,6 +39,9 @@ merges on.
   text report, `cli.py` the command. Public names are re-exported from `__init__.py`.
 - Behaviour follows the R package unless `design.md` §2.1 records a divergence.
 - The caller's DataFrames are never modified.
+- The documentation site is `great-docs.yml` (API reference groups),
+  `user_guide/*.qmd` (guide pages) and the docstrings; a new public name
+  goes into a `reference` group. Guide output is pasted from real runs.
 - Every user-visible change gets a line under the top section of
   `CHANGELOG.md` (`## 0.1.0 (unreleased)` until 0.1.0 ships, then
   `## Unreleased`).

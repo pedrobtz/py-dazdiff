@@ -384,6 +384,12 @@ prints the result, `--summary`, or `--report`.
   and deletion. The steps are in `CLAUDE.md` § Releasing (decided
   2026-11-19: publishing stays a deliberate, approved act, like a CRAN
   submission).
+- Documentation site built with great-docs (Quarto) from `great-docs.yml`,
+  `user_guide/` and the NumPy docstrings, deployed to GitHub Pages by
+  `.github/workflows/docs.yml` on pushes to `main`; great-docs and Quarto
+  pinned to versions. The CLI page is hand-written, since great-docs
+  documents only Click CLIs (decided 2026-11-19, Stage 10: PyPI should link
+  documentation from the first release).
 - The version has one source, `project.version` in `pyproject.toml`;
   `dazdiff.__version__` reads it from the installed metadata (decided
   2026-11-13, Stage 8).

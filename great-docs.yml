@@ -1,0 +1,44 @@
+# Great Docs configuration: https://posit-dev.github.io/great-docs/
+# The site's home page is README.md; guide pages live in user_guide/.
+
+display_name: dazdiff
+parser: numpy
+dynamic: true
+site_url: https://pedrobtz.github.io/py-dazdiff/
+github_style: icon
+
+authors:
+  - name: pedrobtz
+    role: Author
+    github: pedrobtz
+
+user_guide:
+  - section: Guide
+    contents:
+      - get-started.qmd
+      - command-line.qmd
+
+reference:
+  - title: Compare
+    desc: Compare two tables and judge the result.
+    contents:
+      - diff_table
+      - is_matching
+      - diff_summary
+      - diff_explain
+  - title: Report
+    desc: Draw a comparison as text.
+    contents:
+      - diff_report
+      - DiffReport
+  - title: Testing
+    desc: Use a comparison as a test assertion.
+    contents:
+      - assert_table_equal
+  - title: Helpers and conditions
+    desc: Name normalization, and the errors, notes and warnings dazdiff raises.
+    contents:
+      - normalize_names
+      - DiffError
+      - DiffNote
+      - DiffWarning
